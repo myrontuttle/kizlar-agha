@@ -1,0 +1,79 @@
+[project]
+name = "ai-cloud-project-template"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.13.*"
+dependencies = [
+    # AI dependencies
+    "openai==1.66.3",
+    "litellm==1.63.14",
+    "ollama==0.4.7",
+    "ragas==0.2.14",
+    "instructor==1.7.7",
+    "azure-search-documents==11.5.2",
+    "azure-storage-blob==12.25.0",
+    # observability
+    "langfuse==2.60.1",
+    # backend & frontend
+    "python-multipart==0.0.9",
+    "fastapi[standard]==0.115.5",
+    "streamlit==1.40.1",
+    "uvicorn==0.32.1",
+    # Engineering
+    "pydantic==2.10.6",
+    "pydantic-settings>=2.8.1",
+    "loguru==0.7.3",
+    "rich==13.9.4",
+
+]
+
+############### uv configuration
+# uses also the depenencies in the [project.dependencies] section
+[tool.uv]
+managed = true
+default-groups = ["dev", "docs"]
+
+[dependency-groups]
+# if you add new dependencies here, make sure to add them to [tool.uv] default-groups up above
+dev = [
+    "pytest == 8.3.0",
+    "pytest-asyncio == 0.24.0",
+    "pre-commit == 4.0.1",
+    "jupyter==1.1.1",
+    "ruff==0.8.1"
+]
+docs = [
+    "mkdocs == 1.6.1",
+    "mkdocs-material>=9.5.41",
+    "mkdocstrings>=0.26.2",
+    "mkdocs-mermaid2-plugin>=1.1.1",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocstrings-python",
+    "mkdocs-same-dir",
+    "mkdocs-exclude"
+]
+
+
+# scripts : inside the root folder, you can run `uv run --directory . hi` or
+[project.scripts]
+hello = "tmp" # will read from __init__.py.
+
+# pytest configuration
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+
+# ruff configuration
+[tool.ruff]
+extend-exclude = ["*.ipynb"]
+line-length = 100
+
+# Enable all `pydocstyle` rules, limiting to those that adhere to the Google convention via `convention = "google"`
+[tool.ruff.lint]
+select = ["D", "F401"]
+ignore = ["D100", "D101", "D102", "D103", "D104", "D107", "D417"]
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstrings.
+convention = "google"
