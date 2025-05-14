@@ -4,7 +4,7 @@
 # Define an argument for the Python version, defaulting to 3.11 if not provided.
 ARG PYTHON_VERSION=3.11.4
 FROM python:${PYTHON_VERSION}-slim
-LABEL authors="amine"
+LABEL authors="myrongt"
 
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -22,7 +22,7 @@ RUN apt autoremove -y
 RUN apt autoclean -y
 
 # Set environment variables
-ENV APP_DIR=/generative-ai-project-template
+ENV APP_DIR=/kizlar-agha
 # Set working directory
 WORKDIR $APP_DIR
 

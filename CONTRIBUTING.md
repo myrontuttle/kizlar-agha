@@ -9,7 +9,7 @@ By participating, you are expected to uphold this code. Please report unacceptab
 
 
 ## 2. Team members:
-- Amine Djeghri
+- Myron Tuttle
 
 ## 3. Best practices 💡
 - Docstring your functions and classes, it is even more important as it is used to generate the documentation with Mkdocs

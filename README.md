@@ -1,6 +1,6 @@
 
 <img src="./assets/icon.svg" width="200" />
-<h1>Generative AI Project Template</h1>
+<h1>Kizlar Agha</h1>
 
 
 [![python](https://img.shields.io/badge/python-3.11+-blue?logo=python)](https://www.python.org/downloads/release/python-3110/)
@@ -21,14 +21,23 @@
 [![GitLab CI](https://img.shields.io/badge/GitLab%20CI-FC6D26?logo=gitlab&logoColor=fff)](#)
 [![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=github-actions&logoColor=white)](#)
 
-Template for a new AI Cloud project.
+In the Ottoman Empire, the Kizlar Agha was the highest ranking eunuch in charge of the sultanate's harem.
 
-Click on [<kbd>Use this template</kbd>](https://github.com/aminedjeghri/ai-cloud-project-template/generate) to start your own project!
+
 
 <img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/palette/macchiato.png" width="400" />
 
-This project is a generative ai template. It contains the following features: LLMs, information extraction, chat, rag & evaluation.
-It uses LLMs(local or cloud),streamlit (with and without fastapi) & Promptfoo as an evaluation and redteam framework for your AI system.
+This project is for coordinating:
+- [ ] Creation and editing of chatbot profiles
+- [ ] Creation and review of profile images
+- [ ] Creation and refinement of chat scenarios
+- [ ] Creation of scenario images
+- [ ] Creation of scenario video clips
+- [ ] Chat conversations in scenarios
+- [ ] Text To Speach (TTS)
+ 
+It contains the following features: LLMs, information extraction, chat, rag & evaluation.
+It uses LLMs(local or cloud), streamlit (with and without fastapi) & Promptfoo as an evaluation and redteam framework for your AI system.
 
 | Test embeddings                                       | Test chat                                            |
 |-------------------------------------------------------|------------------------------------------------------|
@@ -46,7 +55,7 @@ It uses LLMs(local or cloud),streamlit (with and without fastapi) & Promptfoo as
 
 **AI tools:**
 
-- [x] LLM running locally with Ollama or  in the cloud with any LLM provider (LiteLLM)
+- [x] LLM running locally with Ollama or in the cloud with any LLM provider (LiteLLM)
 - [x] Information extraction and Question answering from documents
 - [x] Chat to test the AI system
 - [x] Efficient async code using asyncio.
