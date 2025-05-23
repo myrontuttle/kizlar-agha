@@ -23,12 +23,10 @@
 
 In the Ottoman Empire, the Kizlar Agha was the highest ranking eunuch in charge of the sultanate's harem.
 
-
-
 <img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/palette/macchiato.png" width="400" />
 
 This project is for coordinating:
-- [ ] Creation and editing of chatbot profiles
+- [ ] Creation and editing of character profiles
 - [ ] Creation and review of profile images
 - [ ] Creation and refinement of chat scenarios
 - [ ] Creation of scenario images
