@@ -1,7 +1,7 @@
 [project]
-name = "ai-cloud-project-template"
+name = "Kizlar-Agha"
 version = "0.1.0"
-description = "Add your description here"
+description = "Harem Manager"
 readme = "README.md"
 requires-python = "==3.13.*"
 dependencies = [
@@ -25,7 +25,7 @@ dependencies = [
     "pydantic-settings>=2.8.1",
     "loguru==0.7.3",
     "rich==13.9.4",
-
+    "docker>=7.1.0",
 ]
 
 ############### uv configuration

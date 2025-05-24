@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
 {
-	"name": "Existing Dockerfile",
+	"name": "Kizlar Agha Dev",
 	"build": {
 		// Sets the run context to one level up instead of the .devcontainer folder.
 		"context": "..",
@@ -11,14 +11,19 @@
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
-        "ghcr.io/devcontainers/features/git:1": {}
-    },
+		"ghcr.io/devcontainers/features/git:1": {}
+	},
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
+	"forwardPorts": [8501, 8501],
+
+	// Mount the local docker socket as a data volume in the container to control Docker from within the container.
+	"mounts": [
+		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind,consistency=cached"
+	],
 
 	// Uncomment the next line to run commands after the container is created.
-	// "postCreateCommand": "cat /etc/os-release",
+	//"postCreateCommand": "make run-frontend",
 
 	// Configure tool-specific properties.
 	"customizations": {

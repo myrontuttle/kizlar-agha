@@ -1,5 +1,7 @@
 import streamlit as st
 
+from utils import docker_client
+
 st.write("# Home Page")
 
 st.write(
@@ -13,3 +15,7 @@ There are two pages showcasing the connection with azure :
 - Using only Azure Openai without ani RAG : just a chat.
 """
 )
+
+containers = docker_client.containers.list(all=True)
+
+st.write([container.name for container in containers])

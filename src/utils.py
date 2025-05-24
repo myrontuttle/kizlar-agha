@@ -9,6 +9,8 @@ from azure.search.documents import SearchClient
 from loguru import logger as loguru_logger
 from pydantic import ValidationError
 
+import docker
+
 from settings_env import Settings
 
 # Check if we run the code from the src directory
@@ -51,7 +53,9 @@ def initialize():
             AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
         )
 
-    return settings, loguru_logger, search_client
+    docker_client = docker.DockerClient(base_url="unix://var/run/docker.sock")
+
+    return settings, loguru_logger, search_client, docker_client
 
 
 def safe_eval(x):
@@ -88,4 +92,4 @@ def validation_error_message(error: ValidationError) -> ValidationError:
     return error
 
 
-settings, logger, search_client = initialize()
+settings, logger, search_client, docker_client = initialize()

@@ -3,10 +3,10 @@ x-common-environment:
   OLLAMA_MODEL_NAME: ${OLLAMA_MODEL_NAME:-qwen3:0.6b}
   OLLAMA_EMBEDDING_MODEL_NAME: ${OLLAMA_EMBEDDING_MODEL_NAME:-all-minilm:l6-v2}
   INFERENCE_DEPLOYMENT_NAME: ${INFERENCE_DEPLOYMENT_NAME:-ollama_chat/qwen3:0.6b}
-  INFERENCE_BASE_URL: http://ollama:11434
+  INFERENCE_BASE_URL: http://host.docker.internal:11434
   INFERENCE_API_KEY: ${INFERENCE_API_KEY:-t}
   EMBEDDINGS_DEPLOYMENT_NAME: ${EMBEDDINGS_DEPLOYMENT_NAME:-ollama/all-minilm:l6-v2}
-  EMBEDDINGS_BASE_URL: http://ollama:11434
+  EMBEDDINGS_BASE_URL: http://host.docker.internal:11434
   EMBEDDINGS_API_KEY: ${EMBEDDINGS_API_KEY:-t}
   DEV_MODE: ${DEV_MODE:-True}
   FASTAPI_HOST: ${FASTAPI_HOST:-localhost}
@@ -19,6 +19,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: frontend
+    volumes:
+      # This allows access to the host's docker, e.g. for builds:
+      - /var/run/docker.sock:/var/run/docker.sock
     command: make run-frontend
     ports:
       - "8501:8501"
@@ -35,28 +38,5 @@ services:
 #    ports:
 #      - "8080:8080"
 #    env_file: ".env.example.docker"
-#    environment:
-#      <<: *common-environment
-
-#  ollama:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile.ollama
-#    ports:
-#      - 11434:11434
-#    deploy:
-#      resources:
-#        reservations:
-#          devices:
-#            - driver: nvidia
-#              count: 1
-#              capabilities: [gpu]
-#    volumes:
-#      - ../ollama/:/root/.ollama
-#      - /home/dev/models:/models
-#    container_name: ollama
-#    pull_policy: always
-#    tty: true
-#    restart: always
 #    environment:
 #      <<: *common-environment

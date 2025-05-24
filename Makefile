@@ -124,7 +124,7 @@ test:
 	@$(UV) run pytest tests
 
 test-ollama:
-	curl -X POST http://localhost:11434/api/generate -H "Content-Type: application/json" -d '{"model": "phi3:3.8b-mini-4k-instruct-q4_K_M", "prompt": "Hello", "stream": false}'
+	curl -X POST http://host.docker.internal:11434/api/generate -H "Content-Type: application/json" -d '{"model": "phi3:3.8b-mini-4k-instruct-q4_K_M", "prompt": "Hello", "stream": false}'
 
 test-inference-llm:
 	# llm that generate answers (used in chat, rag and promptfoo)
@@ -148,7 +148,7 @@ run-langfuse:
 
 
 ########### Docker & deployment
-CONTAINER_NAME = generativr-ai-project-template
+CONTAINER_NAME = kizlar-agha
 export PROJECT_ROOT = $(shell pwd)
 docker-build:
 	@echo "${YELLOW}Building docker image...${NC}"
