@@ -12,7 +12,7 @@ dependencies = [
     "ragas==0.2.14",
     "instructor==1.7.7",
     "azure-search-documents==11.5.2",
-    "azure-storage-blob==12.25.0",
+    "azure-storage-blob==12.25.1",
     # observability
     "langfuse==2.60.1",
     # backend & frontend
