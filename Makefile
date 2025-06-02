@@ -30,6 +30,24 @@ install-dev:install-uv
 	@$(UV) sync
 	@echo "${GREEN}Dependencies installed.${NC}"
 
+install-postgres:
+	@echo "${YELLOW}Installing PostgreSQL...${NC}"
+	apt-get update
+	apt-get install -y postgresql postgresql-contrib
+	@echo "${GREEN}PostgreSQL installed.${NC}"
+
+generate-env-docker:
+	@echo "${YELLOW}Generating .env file...${NC}"
+	@echo "Creating .env.docker file with generated postgres password..."
+	./generate_env.sh .env.example.docker
+	@echo "${GREEN}.env.docker file created with generated postgres password.${NC}"
+
+generate-env-local:
+	@echo "${YELLOW}Generating .env file...${NC}"
+	@echo "Creating .env file with generated postgres password..."
+	./generate_env.sh .env.example
+	@echo "${GREEN}.env file created with generated postgres password.${NC}"
+
 STREAMLIT_PORT ?= 8501
 run-frontend:
 	@echo "Running frontend"
@@ -38,6 +56,17 @@ run-frontend:
 run-backend:
 	@echo "Running backend"
 	cd src; $(UV) run main_backend.py;
+
+start-postgres:
+	@echo "Starting PostgreSQL..."
+	service postgresql start
+
+stop-postgres:
+	@echo "Stopping PostgreSQL..."
+	service postgresql stop
+
+status-postgres:
+	service postgresql status
 
 run-app:
 	make run-frontend run-backend -j2

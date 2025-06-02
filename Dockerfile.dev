@@ -29,8 +29,7 @@ WORKDIR $APP_DIR
 # copy dependencies and installing them before copying the project to not rebuild the .env every time
 COPY pyproject.toml uv.lock Makefile $APP_DIR
 
-# Install dependencies using uv
-RUN make install-prod
+RUN make install-dev
 
 # Copy the rest of the application code
 COPY . $APP_DIR

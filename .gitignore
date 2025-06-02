@@ -163,6 +163,7 @@ cython_debug/
 
 # environment var
 .env
+.env.dev
 *.secrets
 
 # node

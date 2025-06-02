@@ -13,6 +13,9 @@ services:
       - files:/app/files
     command: make run-frontend
     env_file: ".env"
+    environment:
+      POSTGRES_HOST: db
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
 
 #  backend:
 #    build:
@@ -24,6 +27,9 @@ services:
 #    ports:
 #      - "${FASTAPI_PORT:-8080}:8080"
 #    env_file: ".env"
+#    environment:
+#      POSTGRES_HOST: db
+#      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/{POSTGRES_DB
 
   db:
     image: postgres:${PG_MAJOR:-latest}
@@ -39,6 +45,9 @@ services:
     ports:
       - "5432:5432"
     env_file: ".env"
+    environment:
+      POSTGRES_HOST: db
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/{POSTGRES_DB}
 
 volumes:
   files:

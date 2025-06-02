@@ -2,7 +2,6 @@
 <img src="./assets/icon.svg" width="200" />
 <h1>Kizlar Agha</h1>
 
-
 [![python](https://img.shields.io/badge/python-3.11+-blue?logo=python)](https://www.python.org/downloads/release/python-3110/)
 [![Debian](https://img.shields.io/badge/Debian-A81D33?logo=debian&logoColor=fff)](https://www.debian.org/)
 [![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=F0F0F0)](#)
@@ -21,11 +20,11 @@
 [![GitLab CI](https://img.shields.io/badge/GitLab%20CI-FC6D26?logo=gitlab&logoColor=fff)](#)
 [![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=github-actions&logoColor=white)](#)
 
-In the Ottoman Empire, the Kizlar Agha was the highest ranking eunuch in charge of the sultanate's harem.
-
 <img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/palette/macchiato.png" width="400" />
 
-This project is for coordinating:
+Kizlar Agha provides odalisques and manages the seraglio.
+
+That includes:
 - [ ] Creation and editing of character profiles
 - [ ] Creation and review of profile images
 - [ ] Creation and refinement of chat scenarios
@@ -33,9 +32,9 @@ This project is for coordinating:
 - [ ] Creation of scenario video clips
 - [ ] Chat conversations in scenarios
 - [ ] Text To Speach (TTS)
- 
+
 It contains the following features: LLMs, information extraction, chat, rag & evaluation.
-It uses LLMs(local or cloud), streamlit (with and without fastapi) & Promptfoo as an evaluation and redteam framework for your AI system.
+It uses LLMs (local or cloud), streamlit (with and without fastapi) & Promptfoo as an evaluation and redteam framework for your AI system.
 
 | Test embeddings                                       | Test chat                                            |
 |-------------------------------------------------------|------------------------------------------------------|
@@ -145,15 +144,15 @@ Tree:
 - Ubuntu 22.04 or MacOS
 - git clone the repository
 - UV & Python 3.11 (will be installed by the Makefile)
-- Create a ``.env`` file *(take a look at the ``.env.example`` file)*
+- Create a ``.env`` file *(take a look at the ``.env.example`` file or run `make generate-env-local` or `make generate-env-docker`)*
 
 
 ### 1.2 ⚙️ Steps for Installation (Users)
 #### App (AI, FastAPI, Streamlit)
 You can run the app in a docker container or locally.
 #### Docker:
-- The `docker-compose.yml` file is used to run the app in a docker container. It will install the following services: frontend, backend and ollama. Your can comment out ollama if you don't need it.
-- The `docker-compose.yml` will use the `.env.example.docker` file to configure the environment variables. Per default, it uses ollama docker container.
+- The `docker-compose.yml` file is used to run the app in a docker container. It will install the following services: frontend, backend and postgres. Your can comment out backend if you don't need it.
+- The `docker-compose.yml` will use the `.env` file to configure the environment variables. Per default, it uses ollama docker container. Copy `.env.example.docker` to `.env` 
 - Run this command : `make docker-compose` then go to [http://localhost:8501](http://localhost:8501)
 
 #### Local :

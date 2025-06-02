@@ -6,7 +6,12 @@
 		// Sets the run context to one level up instead of the .devcontainer folder.
 		"context": "..",
 		// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-		"dockerfile": "../Dockerfile"
+		"dockerfile": "../Dockerfile.dev"
+	},
+
+	"containerEnv": {
+    	"POSTGRES_HOST": "localhost",
+		"DATABASE_URL": "postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/{POSTGRES_DB}"
 	},
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
