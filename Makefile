@@ -61,6 +61,11 @@ start-postgres:
 	@echo "Starting PostgreSQL..."
 	service postgresql start
 
+set-postgres-password:
+	@echo "${YELLOW}Setting PostgreSQL password from \$${POSTGRES_PASSWORD}...${NC}"
+	su - postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD '$$POSTGRES_PASSWORD';\""
+	@echo "${GREEN}PostgreSQL password set.${NC}"
+
 stop-postgres:
 	@echo "Stopping PostgreSQL..."
 	service postgresql stop

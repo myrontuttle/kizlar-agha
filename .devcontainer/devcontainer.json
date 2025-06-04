@@ -27,7 +27,7 @@
 	],
 
 	// Uncomment the next line to run commands after the container is created.
-	// "postCreateCommand": "cd /workspaces/kizlar-agha && service postgresql start && set -a && [ -f .env ] && . .env && set +a && su - postgres -c \"psql -c \\\"ALTER USER postgres WITH PASSWORD '$POSTGRES_PASSWORD';\\\"\"",
+	"postCreateCommand": "make generate-env-local && make start-postgres && make set-postgres-password",
 
 	// Configure tool-specific properties.
 	"customizations": {
