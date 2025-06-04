@@ -18,9 +18,7 @@ if selected == "New":
         profile_image_path="",
         chat_model="",
         personality="",
-        background="",
-        role="",
-        genre=""
+        background=""
     )
 else:
     profile_id = int(selected.split(":")[0])
@@ -35,8 +33,6 @@ with st.form("profile_form"):
     chat_model = st.text_input("Chat Model", value=profile_data.chat_model or "")
     personality = st.text_input("Personality", value=profile_data.personality or "")
     background = st.text_input("Background", value=profile_data.background or "")
-    role = st.text_input("Role", value=profile_data.role or "")
-    genre = st.text_input("Genre", value=profile_data.genre or "")
     st.markdown("---")
     submitted = st.form_submit_button("Save")
 
@@ -48,7 +44,5 @@ with st.form("profile_form"):
         profile_data.chat_model = chat_model
         profile_data.personality = personality
         profile_data.background = background
-        profile_data.role = role
-        profile_data.genre = genre
         saved = save_profile(profile_data)
         st.success(f"Profile saved (ID: {saved.id})")

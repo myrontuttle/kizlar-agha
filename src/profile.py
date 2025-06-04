@@ -14,8 +14,6 @@ class Profile(Base):
     chat_model = Column(String)
     personality = Column(String)
     background = Column(String)
-    role = Column(String)
-    genre = Column(String)
 
 
 class ProfileSchema(BaseModel):
@@ -27,8 +25,6 @@ class ProfileSchema(BaseModel):
     chat_model: str | None = None
     personality: str | None = None
     background: str | None = None
-    role: str | None = None
-    genre: str | None = None
 
     class Config:
         from_attributes = True

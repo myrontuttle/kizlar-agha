@@ -69,7 +69,7 @@ status-postgres:
 	service postgresql status
 
 run-app:
-	make run-frontend run-backend -j2
+	make start-postgres run-frontend run-backend -j2
 
 pre-commit-install:
 	@echo "${YELLOW}=========> Installing pre-commit...${NC}"

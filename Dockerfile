@@ -35,5 +35,8 @@ RUN make install-prod
 # Copy the rest of the application code
 COPY . $APP_DIR
 
+# Generate an .env file
+RUN make generate-env-docker
+
 # Define default entrypoint if needed (Optional)
 CMD ["/bin/bash"]

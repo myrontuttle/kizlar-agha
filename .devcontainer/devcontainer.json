@@ -10,8 +10,7 @@
 	},
 
 	"containerEnv": {
-    	"POSTGRES_HOST": "localhost",
-		"DATABASE_URL": "postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/{POSTGRES_DB}"
+    	"POSTGRES_HOST": "localhost"
 	},
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
@@ -28,7 +27,7 @@
 	],
 
 	// Uncomment the next line to run commands after the container is created.
-	//"postCreateCommand": "make run-frontend",
+	// "postCreateCommand": "cd /workspaces/kizlar-agha && service postgresql start && set -a && [ -f .env ] && . .env && set +a && su - postgres -c \"psql -c \\\"ALTER USER postgres WITH PASSWORD '$POSTGRES_PASSWORD';\\\"\"",
 
 	// Configure tool-specific properties.
 	"customizations": {

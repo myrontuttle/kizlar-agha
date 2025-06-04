@@ -26,13 +26,17 @@ ENV APP_DIR=/kizlar-agha
 # Set working directory
 WORKDIR $APP_DIR
 
-# copy dependencies and installing them before copying the project to not rebuild the .env every time
+# copy dependencies and installing them before copying the project
 COPY pyproject.toml uv.lock Makefile $APP_DIR
 
 RUN make install-dev
+RUN make install-postgres
 
 # Copy the rest of the application code
 COPY . $APP_DIR
+
+# Generate an .env file
+RUN make generate-env-local
 
 # Define default entrypoint if needed (Optional)
 CMD ["/bin/bash"]

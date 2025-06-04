@@ -4,7 +4,8 @@
 set -e
 
 EXAMPLE_ENV="${1:-.env.example.docker}"
-GENERATED_ENV="$(echo "$EXAMPLE_ENV" | sed 's/example\.//')"
+# Remove '.example' from the filename to get the output file
+GENERATED_ENV="$(basename "$EXAMPLE_ENV" | sed 's/\.example//')"
 
 if [ ! -f "$EXAMPLE_ENV" ]; then
   echo "Error: $EXAMPLE_ENV not found!"
@@ -12,7 +13,7 @@ if [ ! -f "$EXAMPLE_ENV" ]; then
 fi
 
 # Generate a random password
-PW=$(openssl rand -hex 32)
+PW=$(openssl rand -hex 16)
 
 # Replace POSTGRES_PASSWORD line and write to .env
 awk -v pw="$PW" '

@@ -4,7 +4,15 @@ from profile import Base, Profile
 
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:postgres@db:5432/postgres")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "postgres")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+)
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
@@ -32,8 +40,6 @@ def save_profile(data):
                 profile.chat_model = data.chat_model
                 profile.personality = data.personality
                 profile.background = data.background
-                profile.role = data.role
-                profile.genre = data.genre
         else:
             profile = Profile(
                 name=data.name,
@@ -42,9 +48,7 @@ def save_profile(data):
                 profile_image_path=data.profile_image_path,
                 chat_model=data.chat_model,
                 personality=data.personality,
-                background=data.background,
-                role=data.role,
-                genre=data.genre
+                background=data.background
             )
             session.add(profile)
         session.commit()
