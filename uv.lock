@@ -1309,9 +1309,11 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-multipart" },
     { name = "ragas" },
+    { name = "requests" },
     { name = "rich" },
     { name = "streamlit" },
     { name = "uvicorn" },
+    { name = "websocket-client" },
 ]
 
 [package.dev-dependencies]
@@ -1350,9 +1352,11 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.8.1" },
     { name = "python-multipart", specifier = "==0.0.9" },
     { name = "ragas", specifier = "==0.2.14" },
+    { name = "requests", specifier = ">=2.32.3" },
     { name = "rich", specifier = "==13.9.4" },
     { name = "streamlit", specifier = "==1.40.1" },
     { name = "uvicorn", specifier = "==0.32.1" },
+    { name = "websocket-client", specifier = ">=1.8.0" },
 ]
 
 [package.metadata.requires-dev]

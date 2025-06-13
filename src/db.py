@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from profile import Base, Profile
+from profile import Base, Profile, ProfileSchema
 
 import os
 
@@ -52,4 +52,5 @@ def save_profile(data):
             )
             session.add(profile)
         session.commit()
-        return profile
+        # Return a copy or dict, not the ORM object
+        return ProfileSchema.from_orm(profile)
