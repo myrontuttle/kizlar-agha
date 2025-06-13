@@ -16,7 +16,7 @@ dependencies = [
     # observability
     "langfuse==2.60.1",
     # backend & frontend
-    "python-multipart==0.0.9",
+    "python-multipart==0.0.20",
     "fastapi[standard]==0.115.5",
     "streamlit==1.40.1",
     "uvicorn==0.32.1",
