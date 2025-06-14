@@ -11,13 +11,10 @@ dependencies = [
     "ollama==0.4.7",
     "ragas==0.2.14",
     "instructor==1.7.7",
-    "azure-search-documents==11.5.2",
-    "azure-storage-blob==12.25.0",
     # observability
     "langfuse==2.60.1",
     # backend & frontend
     "python-multipart==0.0.9",
-    "fastapi[standard]==0.115.5",
     "streamlit==1.40.1",
     "uvicorn==0.32.1",
     # Engineering

@@ -53,10 +53,6 @@ run-frontend:
 	@echo "Running frontend"
 	cd src; $(UV) run streamlit run main_frontend.py --server.port $(STREAMLIT_PORT) --server.headless True;
 
-run-backend:
-	@echo "Running backend"
-	cd src; $(UV) run main_backend.py;
-
 start-postgres:
 	@echo "Starting PostgreSQL..."
 	service postgresql start
@@ -74,7 +70,7 @@ status-postgres:
 	service postgresql status
 
 run-app:
-	make start-postgres run-frontend run-backend -j2
+	make start-postgres run-frontend -j2
 
 pre-commit-install:
 	@echo "${YELLOW}=========> Installing pre-commit...${NC}"
@@ -145,7 +141,6 @@ download-ollama-model:
 	@echo "${YELLOW}Downloading local model ${OLLAMA_MODEL_NAME} and ${OLLAMA_EMBEDDING_MODEL_NAME}...${NC}"
 	@ollama pull ${OLLAMA_EMBEDDING_MODEL_NAME}
 	@ollama pull ${OLLAMA_MODEL_NAME}
-
 
 chat-ollama:
 	@echo "${YELLOW}Running ollama...${NC}"

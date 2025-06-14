@@ -13,15 +13,8 @@ llm = InferenceLLMConfig(
     model_name=settings.INFERENCE_DEPLOYMENT_NAME,
     base_url=settings.INFERENCE_BASE_URL,
     api_key=settings.INFERENCE_API_KEY,
-    api_version=settings.INFERENCE_API_VERSION,
 )
 
-embeddings_llm = EmbeddingLLMConfig(
-    model_name=settings.EMBEDDINGS_DEPLOYMENT_NAME,
-    base_url=settings.EMBEDDINGS_BASE_URL,
-    api_key=settings.EMBEDDINGS_API_KEY,
-    api_version=settings.EMBEDDINGS_API_VERSION,
-)
 st.header("Ask your question", divider="rainbow")
 col1, col2 = st.columns([3, 1])
 with col1:

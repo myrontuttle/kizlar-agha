@@ -25,7 +25,6 @@ class InferenceLLMConfig(BaseModel):
     model_name: str
     base_url: str
     api_key: SecretStr
-    api_version: str = "2024-12-01-preview"  # used only if model is from azure openai
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     supports_response_schema: bool = False
@@ -178,7 +177,6 @@ class EmbeddingLLMConfig(InferenceLLMConfig):
     model_name: str
     base_url: str
     api_key: SecretStr
-    api_version: str = "2024-12-01-preview"  # used only if model is from azure openai
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def load_model(self, prompt: str, schema: Type[BaseModel] = None, *args, **kwargs):

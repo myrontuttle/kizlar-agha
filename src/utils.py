@@ -4,8 +4,6 @@ import sys
 import timeit
 from pathlib import Path
 
-from azure.core.credentials import AzureKeyCredential
-from azure.search.documents import SearchClient
 from loguru import logger as loguru_logger
 from pydantic import ValidationError
 
@@ -28,14 +26,13 @@ else:
 
 
 def initialize():
-    """Initialize the settings, logger, and search client.
+    """Initialize the settings, logger and docker client.
 
     Reads the environment variables from the .env file defined in the Settings class.
 
     Returns:
         settings
         loguru_logger
-        search_client
     """
     settings = Settings()
     loguru_logger.remove()
@@ -45,17 +42,9 @@ def initialize():
     else:
         loguru_logger.add(sys.stderr, level="INFO")
 
-    search_client = None
-    if settings.ENABLE_AZURE_SEARCH:
-        search_client = SearchClient(
-            settings.AZURE_SEARCH_SERVICE_ENDPOINT,
-            settings.AZURE_SEARCH_INDEX_NAME,
-            AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
-        )
-
     docker_client = docker.DockerClient(base_url="unix://var/run/docker.sock")
 
-    return settings, loguru_logger, search_client, docker_client
+    return settings, loguru_logger, docker_client
 
 
 def safe_eval(x):
@@ -92,4 +81,4 @@ def validation_error_message(error: ValidationError) -> ValidationError:
     return error
 
 
-settings, logger, search_client, docker_client = initialize()
+settings, logger, docker_client = initialize()

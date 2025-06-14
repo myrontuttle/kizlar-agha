@@ -8,10 +8,8 @@
 
 [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-FFD21E?logo=huggingface&logoColor=000)](#)
 [![OpenAI](https://img.shields.io/badge/OpenAI-%23412991?logo=openai&logoColor=white)](https://pytorch.org/get-started/locally/)
-[![Microsoft Azure](https://custom-icon-badges.demolab.com/badge/Microsoft%20Azure-0089D6?logo=msazure&logoColor=white)](#)
 
 [![streamlit](https://img.shields.io/badge/-Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)](#)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009485.svg?logo=fastapi&logoColor=white)](#)
 
 [![Style: Ruff](https://img.shields.io/badge/style-ruff-41B5BE?style=flat)](https://github.com/charliermarsh/ruff)
 [![MkDocs](https://img.shields.io/badge/MkDocs-526CFE?logo=materialformkdocs&logoColor=fff)](#)
@@ -34,7 +32,7 @@ That includes:
 - [ ] Text To Speach (TTS)
 
 It contains the following features: LLMs, information extraction, chat, rag & evaluation.
-It uses LLMs (local or cloud), streamlit (with and without fastapi) & Promptfoo as an evaluation and redteam framework for your AI system.
+It uses LLMs (local or cloud), streamlit & Promptfoo as an evaluation and redteam framework for your AI system.
 
 | Test embeddings                                       | Test chat                                            |
 |-------------------------------------------------------|------------------------------------------------------|
@@ -47,7 +45,7 @@ It uses LLMs (local or cloud), streamlit (with and without fastapi) & Promptfoo 
 - [x] Logging using loguru (with colors)
 - [x] Pytest for unit tests
 - [x] Dockerized project (Dockerfile & docker-compose).
-- [x] Streamlit (frontend) & FastAPI (backend)
+- [x] Streamlit (frontend)
 - [x] Make commands to handle everything for you: install, run, test
 
 **AI tools:**
@@ -83,7 +81,7 @@ Upcoming features:
 ## 1. Getting started
 This project contains two parts:
 
-- The AI app: contains an AI system (local or cloud), a frontend (streamlit), with an optional backend(fastapi).
+- The AI app: contains an AI system (local or cloud), a frontend (streamlit), with a database(postgres).
 - (optional)The Evaluation Tool: The evaluation tool is used to evaluate the performance and safety of the AI system. It uses promptfoo & RAGAS, Python 3.11 and NVM are needed, but no need to install them by yourself since the project will handle that for you.
 
 The following files are used in the contribution pipeline:
@@ -125,7 +123,6 @@ Tree:
 ├── src
 │   ├── api
 │   ├── evaluation
-│   ├── main_backend.py
 │   ├── main_frontend.py
 │   ├── ml
 │   ├── settings.py
@@ -148,11 +145,11 @@ Tree:
 
 
 ### 1.2 ⚙️ Steps for Installation (Users)
-#### App (AI, FastAPI, Streamlit)
+#### App (AI, Streamlit)
 You can run the app in a docker container or locally.
 #### Docker:
 - The `docker-compose.yml` file is used to run the app in a docker container. It will install the following services: frontend, backend and postgres. Your can comment out backend if you don't need it.
-- The `docker-compose.yml` will use the `.env` file to configure the environment variables. Per default, it uses ollama docker container. Copy `.env.example.docker` to `.env` 
+- The `docker-compose.yml` will use the `.env` file to configure the environment variables. Per default, it uses ollama docker container. Copy `.env.example.docker` to `.env`
 - Run this command : `make docker-compose` then go to [http://localhost:8501](http://localhost:8501)
 
 #### Local :
@@ -171,8 +168,8 @@ You can run the app in a docker container or locally.
 
 3. Run `make test-inference-llm` to check if your LLM responds.
 4. Run the app:
-- To run the app with Streamlit (and without fastapi), run `make run-frontend`
-- To run the app with both Streamlit and FastAPI, run `make run-app`
+- To run the app with just Streamlit, run `make run-frontend`
+- To run the app with both Streamlit and Postgres, run `make run-app`
 
 ### 1.3 ⚙️ Steps for Installation (Contributors and maintainers)
 Check the [CONTRIBUTING.md](CONTRIBUTING.md) file for more information.

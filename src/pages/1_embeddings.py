@@ -14,7 +14,6 @@ embeddings_llm = EmbeddingLLMConfig(
     model_name=settings.EMBEDDINGS_DEPLOYMENT_NAME,
     base_url=settings.EMBEDDINGS_BASE_URL,
     api_key=settings.EMBEDDINGS_API_KEY,
-    api_version=settings.EMBEDDINGS_API_VERSION,
 )
 
 
