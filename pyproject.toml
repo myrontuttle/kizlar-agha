@@ -16,7 +16,7 @@ dependencies = [
     # backend & frontend
     "python-multipart==0.0.9",
     "streamlit==1.40.1",
-    "uvicorn==0.32.1",
+    "uvicorn==0.34.3",
     # Engineering
     "pydantic==2.10.6",
     "pydantic-settings>=2.8.1",
