@@ -31,7 +31,7 @@ That includes:
 - [ ] Chat conversations in scenarios
 - [ ] Text To Speach (TTS)
 
-It contains the following features: LLMs, information extraction, chat, rag & evaluation.
+It contains the following features: LLMs, chat & evaluation.
 It uses LLMs (local or cloud), streamlit & Promptfoo as an evaluation and redteam framework for your AI system.
 
 | Test embeddings                                       | Test chat                                            |
@@ -55,6 +55,7 @@ It uses LLMs (local or cloud), streamlit & Promptfoo as an evaluation and redtea
 - [x] Chat to test the AI system
 - [x] Efficient async code using asyncio.
 - [x] AI Evaluation framework: using Promptfoo, Ragas & more...
+- [x] Use SwarmUI (https://github.com/mcmonkeyprojects/SwarmUI/tree/master/docs) for image generation
 
 **CI/CD & Maintenance tools:**
 
@@ -157,7 +158,7 @@ You can run the app in a docker container or locally.
 2. Choose one of the following options:
    - **Local model**: we use Ollama and litellm to run local models. The default model is `qwen2.5:0.5b` which is a very lightweight model but can be changed.
      - Create a ``.env`` file *(You can copy and paste the ``.env.example`` file with `cp .env.example .env`)*
-     - Install Ollama (for openai) `make install-ollama`
+     - Install Ollama `make install-ollama`
      - Download the model, run `make download-ollama-model`. It will download the model present in the `OLLAMA_MODEL_NAME` var in the ``.env`` file (default is `qwen2.5:0.5b`).
      - Run ollama to emulate openai : `make run-ollama`
      - Run `make test-ollama`. You should see an output with a response.

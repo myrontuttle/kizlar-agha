@@ -77,7 +77,7 @@ class Settings(
     """Settings class for the application.
 
     This class is automatically initialized with environment variables from the .env file.
-    It inherits from the following classes and contains additional settings for streamlit and fastapi
+    It inherits from the following classes and contains additional settings for streamlit
     - ChatEnvironmentVariables
     - EvaluationEnvironmentVariables
 

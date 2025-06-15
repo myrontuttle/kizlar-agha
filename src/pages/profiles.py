@@ -1,7 +1,7 @@
 import streamlit as st
 from db import init_db, get_profiles, get_profile, save_profile
 from profile import ProfileSchema
-from swarm_ui import image_from_prompt
+from ml.swarm_ui import image_from_prompt
 
 init_db()
 

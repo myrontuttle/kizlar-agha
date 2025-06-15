@@ -13,7 +13,6 @@ SWARMUI_API_URL = "http://host.docker.internal:7801/API"
 SWARMUI_WS_URL = "ws://host.docker.internal:7801/API"
 FILES_DIR = os.path.join(os.path.dirname(__file__), "../files")
 PROMPT = "A futuristic cityscape at sunset"
-MODEL_NAME = "stable-diffusion-xl-base-1.0"  # Change as needed
 
 def start_swarmui_session() -> Optional[str]:
     """Start a new SwarmUI session. Returns session_id."""

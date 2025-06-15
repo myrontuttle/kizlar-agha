@@ -3,6 +3,8 @@ from typing import Optional, Type
 
 import instructor
 import litellm
+import requests
+import docker
 from langfuse.decorators import observe
 from litellm import supports_response_schema, acompletion, completion, aembedding, embedding
 from pydantic import BaseModel, SecretStr, ConfigDict, model_validator
@@ -16,7 +18,57 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-from utils import logger
+from utils import settings, logger, docker_client
+
+OLLAMA_CONTAINER = "ollama"
+
+def start_ollama_container():
+    """Start the Ollama container if not already running."""
+    containers = docker_client.containers.list(all=True)
+    if OLLAMA_CONTAINER not in [c.name for c in containers]:
+        logger.info(f"{OLLAMA_CONTAINER} container not found.")
+        for container in containers:
+            logger.info(f"- {container.name}")
+        return
+    ollama_container = docker_client.containers.get(OLLAMA_CONTAINER)
+    if ollama_container.status == "running":
+        logger.info(f"{OLLAMA_CONTAINER} container is already running.")
+        return
+    else:
+        try:
+            docker_client.containers.get(OLLAMA_CONTAINER).start()
+            logger.info("Ollama container started successfully.")
+        except docker.errors.APIError as e:
+            logger.error(f"Error starting {OLLAMA_CONTAINER} container: {e}")
+
+
+def list_ollama_models():
+    """List all models available in the Ollama container."""
+    start_ollama_container()
+    try:
+        response = requests.get(
+            f"{settings.INFERENCE_BASE_URL}/api/tags",
+            headers={"Accept": "application/json"},
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to list Ollama models: {response.status_code} - {response.text}")
+            return []
+        response = response.json()
+        if isinstance(response, dict) and "models" in response:
+            response = response["models"]
+        elif isinstance(response, list):
+            response = [model["name"] for model in response]
+        else:
+            logger.error("Unexpected response format from Ollama API.")
+            return []
+        logger.info(f"Available Ollama models: {response}")
+        if not response:
+            logger.warning("No models found in Ollama.")
+            return []
+        return response
+    except Exception as e:
+        logger.error(f"Error listing Ollama models: {e}")
+        return []
 
 
 class InferenceLLMConfig(BaseModel):
@@ -78,7 +130,6 @@ class InferenceLLMConfig(BaseModel):
                     base_url=self.base_url,
                     messages=messages,
                     response_format=schema,
-                    api_version=self.api_version,
                 )
                 if res.choices[0].finish_reason == "content_filter":
                     raise ValueError(f"Response filtred by content filter")
@@ -94,7 +145,6 @@ class InferenceLLMConfig(BaseModel):
                     base_url=self.base_url,
                     messages=messages,
                     response_model=schema,
-                    api_version=self.api_version,
                 )
                 return res
         else:
@@ -103,7 +153,6 @@ class InferenceLLMConfig(BaseModel):
                 api_key=self.api_key.get_secret_value(),
                 base_url=self.base_url,
                 messages=messages,
-                api_version=self.api_version,
             )
             return res.choices[0].message.content
 
@@ -133,7 +182,6 @@ class InferenceLLMConfig(BaseModel):
                         base_url=self.base_url,
                         messages=messages,
                         response_format=schema,
-                        api_version=self.api_version,
                     )
                     if res.choices[0].finish_reason == "content_filter":
                         raise ValueError(f"Response filtred by content filter")
@@ -149,7 +197,6 @@ class InferenceLLMConfig(BaseModel):
                         base_url=self.base_url,
                         messages=messages,
                         response_model=schema,
-                        api_version=self.api_version,
                     )
                     return res
             else:
@@ -158,7 +205,6 @@ class InferenceLLMConfig(BaseModel):
                     api_key=self.api_key.get_secret_value(),
                     base_url=self.base_url,
                     messages=messages,
-                    api_version=self.api_version,
                 )
 
                 return res.choices[0].message.content
