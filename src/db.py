@@ -34,21 +34,23 @@ def save_profile(data):
             profile = session.query(Profile).filter_by(id=data.id).first()
             if profile:
                 profile.name = data.name
-                profile.image_model = data.image_model
+                profile.background = data.background
+                profile.personality = data.personality
+                profile.interests = data.interests
                 profile.physical_characteristics = data.physical_characteristics
+                profile.image_model = data.image_model
                 profile.profile_image_path = data.profile_image_path
                 profile.chat_model = data.chat_model
-                profile.personality = data.personality
-                profile.background = data.background
         else:
             profile = Profile(
                 name=data.name,
-                image_model=data.image_model,
-                physical_characteristics=data.physical_characteristics,
-                profile_image_path=data.profile_image_path,
-                chat_model=data.chat_model,
+                background=data.background,
                 personality=data.personality,
-                background=data.background
+                interests=data.interests,
+                physical_characteristics=data.physical_characteristics,
+                image_model=data.image_model,
+                profile_image_path=data.profile_image_path,
+                chat_model=data.chat_model
             )
             session.add(profile)
         session.commit()

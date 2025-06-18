@@ -70,6 +70,21 @@ def list_ollama_models():
         logger.error(f"Error listing Ollama models: {e}")
         return []
 
+def stop_ollama_container():
+    """Stop the Ollama container if it is running."""
+    containers = docker_client.containers.list(all=True)
+    if OLLAMA_CONTAINER not in [c.name for c in containers]:
+        logger.info(f"{OLLAMA_CONTAINER} container not found.")
+        return
+    ollama_container = docker_client.containers.get(OLLAMA_CONTAINER)
+    if ollama_container.status == "running":
+        try:
+            ollama_container.stop()
+            logger.info(f"{OLLAMA_CONTAINER} container stopped successfully.")
+        except docker.errors.APIError as e:
+            logger.error(f"Error stopping {OLLAMA_CONTAINER} container: {e}")
+    else:
+        logger.info(f"{OLLAMA_CONTAINER} container is not running.")
 
 class InferenceLLMConfig(BaseModel):
     """Configuration for the inference model."""
@@ -87,6 +102,11 @@ class InferenceLLMConfig(BaseModel):
 
     @model_validator(mode="after")
     def init_client(self) -> Self:
+        """Initialize the LLM client."""
+        start_ollama_container()
+        if not self.model_name:
+            models = list_ollama_models()
+            self.model_name = models[0].name
         try:
             # check if the model supports structured output
             self.supports_response_schema = supports_response_schema(self.model_name.split("/")[-1])

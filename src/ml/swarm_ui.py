@@ -140,32 +140,39 @@ def select_model_ws(session_id, model_name):
 
 def generate_images_ws(
         session_id: str,
-        images: int,
-        prompt: str,
         model_name: str,
+        prompt: str,
+        neg_prompt: str = "",
+        images=1,
+        seed=-1,
         width=1024,
         height=1024,
-        steps=3,
-        cfgscale=2,
-        seed=-1
-    ):
+        steps=1,
+        cfgscale=1,
+        sampler="euler_ancestral",
+        scheduler=""
+    ) -> list[str]:
     ws_url = f"{SWARMUI_WS_URL}/GenerateText2ImageWS"
     ws = websocket.create_connection(ws_url)
     # Start image generation
     ws.send(json.dumps(
         {
             "session_id": session_id,
-            "images": images,
-            "prompt": prompt,
             "model": model_name,
+            "prompt": prompt,
+            "negativeprompt": neg_prompt,
+            "images": images,
+            "seed": seed,
             "width": width,
             "height": height,
             "steps": steps,
             "cfgscale": cfgscale,
-            "seed": seed
+            "sampler": sampler,
+            "scheduler": scheduler
         })
     )
     print("Listening for T2I websocket updates...")
+    image_paths = []
     while True:
         try:
             msg = ws.recv()
@@ -188,17 +195,52 @@ def generate_images_ws(
         if event.get("gen_progress"):
             # Print the generation progress
             print(f"Generation progress: {event['gen_progress']}")
+            if event['gen_progress']['overall_percent'] == 1.0:
+                print("Generation complete.")
+                break
         if event.get("image"):
             image_info = event["image"]
             if isinstance(image_info, dict) and "image" in image_info:
-                image_path = image_info["image"]
+                image_paths.append(image_info["image"])
             elif isinstance(image_info, str):
-                image_path = image_info
+                image_paths.append(image_info)
             else:
                 print(f"Unexpected image format: {image_info}")
-            break #TODO: Handle multiple images
     ws.close()
-    return image_path
+    return image_paths
+
+def generate_seed_search(session_id, model, prompt: str):
+    """Generate a set of images with random seed."""
+    neg_prompt = "logo timestamp artist name artist watermark web address copyright " \
+    "notice emblem comic title character border dog cow butterfly loli child kids teens text"
+    return generate_images_ws(
+        session_id=session_id,
+        model=model,
+        prompt=prompt,
+        neg_prompt=neg_prompt,
+        images=6,
+        seed=-1,  # Random seed
+        steps=9,
+        cfgscale=3,
+        sampler="euler_ancestral",
+    )
+
+def generate_target(session_id, model, prompt: str, seed):
+    """Generate a target image with a specific seed."""
+    neg_prompt = "logo timestamp artist name artist watermark web address copyright " \
+    "notice emblem comic title character border dog cow butterfly loli child kids teens text"
+    return generate_images_ws(
+        session_id=session_id,
+        model=model,
+        prompt=prompt,
+        neg_prompt=neg_prompt,
+        images=1,
+        seed=seed,  # Specific seed
+        steps=12,
+        cfgscale=4,
+        sampler="euler_ancestral",
+        scheduler="karras",
+    )
 
 def download_image(image_path, dest_folder):
     """Download an image from a URL to a specified folder."""
@@ -221,7 +263,7 @@ def download_image(image_path, dest_folder):
     print(f"Image downloaded to {filename}")
     return filename
 
-def image_from_prompt(prompt: str):
+def image_from_prompt(prompt: str, preset: Optional[str] = None, seed: Optional[int] = None):
     """Generate an image from a prompt using SwarmUI."""
     if not prompt:
         print("Prompt is empty. Please provide a valid prompt.")
@@ -241,14 +283,29 @@ def image_from_prompt(prompt: str):
     models = list_models(session_id)
     print(f"Available models: {models}")
     select_model_ws(session_id, models[0])
-    image_url = generate_images_ws(
-        session_id,
-        1,
-        prompt,
-        models[0]
-    )
-    filename = download_image(image_url, FILES_DIR)
-    return filename
+    image_files = []
+    if preset == "seed_search":
+        image_urls = generate_seed_search(
+            session_id,
+            models[0],
+            prompt,
+        )
+    elif preset == "target" and seed is not None:
+        image_urls = generate_target(
+            session_id,
+            models[0],
+            prompt,
+            seed,
+        )
+    else:
+        image_urls = generate_images_ws(
+            session_id,
+            models[0],
+            prompt,
+        )
+    for image_url in image_urls:
+        image_files.append(download_image(image_url, FILES_DIR))
+    return image_files
 
 if __name__ == "__main__":
     image_from_prompt(PROMPT)
