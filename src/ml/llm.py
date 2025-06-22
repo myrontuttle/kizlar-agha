@@ -5,6 +5,9 @@ import instructor
 import litellm
 import requests
 import docker
+import time
+import re
+import json
 from langfuse.decorators import observe
 from litellm import supports_response_schema, acompletion, completion, aembedding, embedding
 from pydantic import BaseModel, SecretStr, ConfigDict, model_validator
@@ -37,6 +40,11 @@ def start_ollama_container():
     else:
         try:
             docker_client.containers.get(OLLAMA_CONTAINER).start()
+            # Wait for the container to be ready
+            while docker_client.containers.get(OLLAMA_CONTAINER).status != "running":
+                logger.info(f"{OLLAMA_CONTAINER} container is "
+                            f"{docker_client.containers.get(OLLAMA_CONTAINER).status}")
+                time.sleep(1)
             logger.info("Ollama container started successfully.")
         except docker.errors.APIError as e:
             logger.error(f"Error starting {OLLAMA_CONTAINER} container: {e}")
@@ -85,6 +93,25 @@ def stop_ollama_container():
             logger.error(f"Error stopping {OLLAMA_CONTAINER} container: {e}")
     else:
         logger.info(f"{OLLAMA_CONTAINER} container is not running.")
+
+def extract_json_from_response(response):
+    # This regex matches ```json ... ```
+    match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
+    if match:
+        json_str = match.group(1)
+        # Remove trailing commas before } or ]
+        json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+        # Parse the JSON string
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decoding error: {e} in response:\n {json_str}")
+            return None
+    return None
+
+def remove_thinking(response):
+    """Remove anything between thinking tags from the response."""
+    return re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL).strip()
 
 class InferenceLLMConfig(BaseModel):
     """Configuration for the inference model."""

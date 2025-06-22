@@ -18,6 +18,7 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
 def init_db():
+    # Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
 def get_profiles():
@@ -39,6 +40,7 @@ def save_profile(data):
                 profile.interests = data.interests
                 profile.physical_characteristics = data.physical_characteristics
                 profile.image_model = data.image_model
+                profile.image_seed = data.image_seed
                 profile.profile_image_path = data.profile_image_path
                 profile.chat_model = data.chat_model
         else:
@@ -49,10 +51,20 @@ def save_profile(data):
                 interests=data.interests,
                 physical_characteristics=data.physical_characteristics,
                 image_model=data.image_model,
+                image_seed=data.image_seed,
                 profile_image_path=data.profile_image_path,
                 chat_model=data.chat_model
             )
             session.add(profile)
         session.commit()
         # Return a copy or dict, not the ORM object
-        return ProfileSchema.from_orm(profile)
+        return ProfileSchema.model_validate(profile)
+
+def delete_profile(profile_id: int):
+    with SessionLocal() as session:
+        profile = session.query(Profile).filter_by(id=profile_id).first()
+        if profile:
+            session.delete(profile)
+            session.commit()
+            return True
+        return False
