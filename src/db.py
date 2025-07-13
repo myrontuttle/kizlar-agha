@@ -1,6 +1,8 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from base import Base
 from profile import Base, Profile, ProfileSchema
+from model_selection import ModelSelection, ModelSelectionSchema
 
 import os
 
@@ -18,8 +20,10 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
 def init_db():
-    # Base.metadata.drop_all(bind=engine)
+    # Base.metadata.drop_all(bind=engine)  # Only for dev!
     Base.metadata.create_all(bind=engine)
+    from model_selection import Base as ModelSelectionBase
+    ModelSelectionBase.metadata.create_all(bind=engine)
 
 def get_profiles():
     with SessionLocal() as session:
@@ -68,3 +72,27 @@ def delete_profile(profile_id: int):
             session.commit()
             return True
         return False
+
+def get_model_selection():
+    with SessionLocal() as session:
+        selection = session.query(ModelSelection).first()
+        if selection:
+            return ModelSelectionSchema.model_validate(selection)
+        return None
+
+def save_model_selection(data):
+    with SessionLocal() as session:
+        selection = session.query(ModelSelection).first()
+        if selection:
+            selection.llm_model = data.llm_model
+            selection.embedding_model = data.embedding_model
+            selection.image_model = data.image_model
+        else:
+            selection = ModelSelection(
+                llm_model=data.llm_model,
+                embedding_model=data.embedding_model,
+                image_model=data.image_model,
+            )
+            session.add(selection)
+        session.commit()
+        return ModelSelectionSchema.model_validate(selection)

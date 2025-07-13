@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import declarative_base
 from pydantic import BaseModel
+from base import Base
 import json
 from ml.llm import InferenceLLMConfig, stop_ollama_container, extract_json_from_response, remove_thinking
 from ml.swarm_ui import image_from_prompt
@@ -37,10 +38,10 @@ class Profile(Base):
         }
 
     @classmethod
-    def generate_profile(cls) -> "Profile":
-        """Generate a profile based on the following prompts with profile image."""
+    def generate_profile(cls, llm_model: str) -> "Profile":
+        """Generate a profile based on the following prompts."""
         llm = InferenceLLMConfig(
-            model_name=settings.INFERENCE_DEPLOYMENT_NAME,
+            model_name=llm_model,
             base_url=settings.INFERENCE_BASE_URL,
             api_key=settings.INFERENCE_API_KEY,
         )
@@ -56,17 +57,17 @@ class Profile(Base):
                     "individual. Creativity and conciseness are vital, as you must invent details "
                     "that add depth to the character while limiting the size of your response to fit "
                     "in an AI model's limited context window (single words and evocative phrases are "
-                    "best). For 'background' include where and when they were born, use that to infer their "
+                    "best). For 'background' include where they were born, use that to infer their "
                     "ethnicity, education, occupation, socioeconomic status, and a few significant life events "
                     "that shaped them (200 words or less). Use their background to infer their "
                     "'personality' traits, such as their temperament, desires, quirks, and how they interact "
-                    "with others (100 words or less). Briefly describe their 'interests' based on their "
+                    "with others (100 words or less). Briefly list their 'interests' based on their "
                     "background and personality (50 words or less). List their 'physical_characteristics' "
                     "(based on ethnicity) as a prompt for an image generator "
                     "(i.e., as a string of words separated by commas) "
                     "with an adjective and their gender (e.g., sexy woman), body description, skin tone, "
                     "hair color and style, facial features, and eye color using as few words as possible (25 words or less). "
-                    "Infer their 'name' based on where and when they were born. "
+                    "Infer their 'name' based on where they were born. "
                     "Use proper json format with the keys: 'name', 'background', "
                     "'personality', 'interests', and 'physical_characteristics', but make sure the "
                     "values are all strings.",
@@ -74,9 +75,9 @@ class Profile(Base):
                 {
                     "role": "user",
                     "content": "Generate the profile of a sexy and seductive woman for erotic scenarios. "
-                    "She can be any ethnicity except black or African. Be as sexually explicit as possible "
-                    "for the 'physical_characteristics' including descriptions of her breasts and legs "
-                    "for her body description to create a vivid image.",
+                    "She should be from a Latin American, European, or East Asian country. Be as sexually "
+                    "explicit as possible for the 'physical_characteristics' including descriptions of her "
+                    "breasts and legs for her body description to create a vivid image.",
                 },
             ]
         )
@@ -96,12 +97,12 @@ class Profile(Base):
             physical_characteristics=profile_data.get("physical_characteristics")
         )
 
-    def generate_scene_description(self):
+    def generate_scene_description(self, llm_model: str):
         """Generate a scene description based on the profile's background and physical characteristics."""
         if not self.physical_characteristics:
             raise ValueError("Cannot generate scene description: physical_characteristics is empty.")
         llm = InferenceLLMConfig(
-            model_name=settings.INFERENCE_DEPLOYMENT_NAME,
+            model_name=llm_model,
             base_url=settings.INFERENCE_BASE_URL,
             api_key=settings.INFERENCE_API_KEY,
         )
@@ -128,8 +129,8 @@ class Profile(Base):
                 {
                     "role": "user",
                     "content": f"Generate an erotic scene description for {self.name} with the following physical "
-                    f"characteristics: {self.physical_characteristics}. Use the following character background: "
-                    f"{self.background}. ",
+                    f"characteristics: {self.physical_characteristics}. Reference the following character background: "
+                    f"{self.interests}. ",
                 },
             ]
         )
@@ -141,17 +142,30 @@ class Profile(Base):
         stop_ollama_container()
         return response
 
-    def generate_images(self):
+    def generate_images(self, image_model: str, llm_model: str) -> str:
         """Generate a set of images based on the profile's background and physical characteristics."""
         if not self.physical_characteristics:
             raise ValueError("Cannot generate image: physical_characteristics is empty.")
-        scene_description = self.generate_scene_description()
+        scene_description = self.generate_scene_description(llm_model)
         if not scene_description:
             raise ValueError("Cannot generate image: scene description is empty.")
         logger.info("Rendering images from scene description.")
-        filenames = image_from_prompt(scene_description, preset="seed_search")
+        filenames = image_from_prompt(scene_description, model=image_model, preset="seed_search")
         logger.info(f"Image(s) generated and saved to {filenames}")
-        self.profile_image_path = json.dumps(filenames) if filenames else None
+        if not filenames:
+            raise ValueError("Failed to generate images: No filenames returned")
+        elif isinstance(filenames, list):
+            # Convert list of filenames to a JSON string
+            filenames = json.dumps(filenames)
+        elif isinstance(filenames, str) and filenames.startswith("[") and "'" in filenames:
+            # Replace single quotes with double quotes
+            filenames = filenames.replace("'", '"')
+            self.profile_image_path = filenames
+        else:
+            # If it's a single filename, wrap it in a list
+            filenames = json.dumps([filenames])
+            self.profile_image_path = filenames
+        logger.info(f"Profile image path set to: {self.profile_image_path}")
         return self.profile_image_path
 
     def get_images(self):

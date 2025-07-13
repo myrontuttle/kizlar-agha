@@ -36,6 +36,20 @@ class EmbeddingsEnvironmentVariables(BaseEnvironmentVariables):
         }
 
 
+class SwarmUIEnvironmentVariables(BaseEnvironmentVariables):
+    SWARMUI_CONTAINER: Optional[str] = "swarmui"
+    SWARMUI_BASE_URL: Optional[str] = "http://host.docker.internal:7801"
+    SWARMUI_API_URL: Optional[str] = "http://host.docker.internal:7801/API"
+    SWARMUI_WS_URL: Optional[str] = "ws://host.docker.internal:7801/API"
+
+    def get_swarmui_env_vars(self):
+        return {
+            "SWARMUI_CONTAINER": self.SWARMUI_CONTAINER,
+            "SWARMUI_BASE_URL": self.SWARMUI_BASE_URL,
+            "SWARMUI_API_URL": self.SWARMUI_API_URL,
+            "SWARMUI_WS_URL": self.SWARMUI_WS_URL,
+        }
+
 class EvaluatorEnvironmentVariables(BaseEnvironmentVariables):
     EVALUATOR_BASE_URL: Optional[str] = "http://localhost:11434"
     EVALUATOR_API_KEY: Optional[SecretStr] = "tt"
@@ -73,6 +87,7 @@ class Settings(
     InferenceEnvironmentVariables,
     EmbeddingsEnvironmentVariables,
     EvaluatorEnvironmentVariables,
+    SwarmUIEnvironmentVariables,
 ):
     """Settings class for the application.
 
@@ -94,6 +109,7 @@ class Settings(
 
         env_vars.update(self.get_inference_env_vars())
         env_vars.update(self.get_embeddings_env_vars())
+        env_vars.update(self.get_swarmui_env_vars())
 
         if self.ENABLE_EVALUATION:
             env_vars.update(self.get_evaluator_env_vars())

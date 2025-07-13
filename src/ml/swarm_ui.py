@@ -6,31 +6,27 @@ import websocket
 import json
 import docker
 import re
-from utils import docker_client, logger
+from utils import docker_client, logger, settings
 
-SWARMUI_CONTAINER = "swarmui"
-SWARMUI_BASE_URL = "http://host.docker.internal:7801"
-SWARMUI_API_URL = "http://host.docker.internal:7801/API"
-SWARMUI_WS_URL = "ws://host.docker.internal:7801/API"
-FILES_DIR = os.path.join(os.path.dirname(__file__), "../../files")
+FILES_DIR = os.path.join(os.path.dirname(__file__), "/kizlar-agha/files")
 PROMPT = "A futuristic cityscape at sunset"
 
 def start_swarmui_session() -> Optional[str]:
     """Start a new SwarmUI session. Returns session_id."""
     # Check if the SwarmUI container is available
     containers = docker_client.containers.list(all=True)
-    if SWARMUI_CONTAINER not in [c.name for c in containers]:
-        logger.warning(f"{SWARMUI_CONTAINER} not available. Available containers:")
+    if settings.SWARMUI_CONTAINER not in [c.name for c in containers]:
+        logger.warning(f"{settings.SWARMUI_CONTAINER} not available. Available containers:")
         for container in containers:
             logger.warning(f"- {container.name}")
         return
     # Get the swarmui container
-    swarmui = docker_client.containers.get(SWARMUI_CONTAINER)
+    swarmui = docker_client.containers.get(settings.SWARMUI_CONTAINER)
     if swarmui.status == "running":
-        logger.info(f"Container {SWARMUI_CONTAINER} is running.")
+        logger.info(f"Container {settings.SWARMUI_CONTAINER} is running.")
         # Try to get a session ID
         r = requests.post(
-            f"{SWARMUI_API_URL}/GetNewSession",
+            f"{settings.SWARMUI_API_URL}/GetNewSession",
             json={},
             headers={'Content-type': 'application/json'}
         )
@@ -41,18 +37,18 @@ def start_swarmui_session() -> Optional[str]:
             return
     else:
         # If the container is not running, start it
-        logger.info(f"Container {SWARMUI_CONTAINER} is not running. Starting it...")
+        logger.info(f"Container {settings.SWARMUI_CONTAINER} is not running. Starting it..")
         try:
-            docker_client.containers.get(SWARMUI_CONTAINER).start()
+            docker_client.containers.get(settings.SWARMUI_CONTAINER).start()
         except docker.errors.APIError as e:
-            logger.error(f"Error starting container {SWARMUI_CONTAINER}: {e}")
+            logger.error(f"Error starting container {settings.SWARMUI_CONTAINER}: {e}")
             return
         # Try to get a session ID
         wait_time = 60
         for _ in range(wait_time):
             try:
                 r = requests.post(
-                    f"{SWARMUI_API_URL}/GetNewSession",
+                    f"{settings.SWARMUI_API_URL}/GetNewSession",
                     json={},
                     headers={'Content-type': 'application/json'}
                 )
@@ -66,22 +62,22 @@ def start_swarmui_session() -> Optional[str]:
 def stop_swarmui():
     """Stop the SwarmUI container."""
     try:
-        swarmui = docker_client.containers.get(SWARMUI_CONTAINER)
+        swarmui = docker_client.containers.get(settings.SWARMUI_CONTAINER)
         if swarmui.status == "running":
-            logger.info(f"Stopping container {SWARMUI_CONTAINER}...")
+            logger.info(f"Stopping container {settings.SWARMUI_CONTAINER}..")
             swarmui.stop()
             logger.info("Container stopped.")
         else:
-            logger.info(f"Container {SWARMUI_CONTAINER} is not running.")
+            logger.info(f"Container {settings.SWARMUI_CONTAINER} is not running.")
     except docker.errors.NotFound:
-        logger.error(f"Container {SWARMUI_CONTAINER} not found.")
+        logger.error(f"Container {settings.SWARMUI_CONTAINER} not found.")
     except docker.errors.APIError as e:
-        logger.error(f"Error stopping container {SWARMUI_CONTAINER}: {e}")
+        logger.error(f"Error stopping container {settings.SWARMUI_CONTAINER}: {e}")
 
 def get_current_status(session_id) -> Optional[dict]:
     """Get the current status of the SwarmUI session."""
     r = requests.post(
-        url=f"{SWARMUI_API_URL}/GetCurrentStatus",
+        url=f"{settings.SWARMUI_API_URL}/GetCurrentStatus",
         json={"session_id": session_id},
         headers={'Content-type': 'application/json'}
     )
@@ -91,10 +87,15 @@ def get_current_status(session_id) -> Optional[dict]:
         logger.error(f"Error getting status: {r.status_code} - {r.text}")
         return None
 
-def list_models(session_id) -> Optional[list[str]]:
+def list_image_models(session_id: Optional[str] = None) -> Optional[list[str]]:
     """List available models in SwarmUI."""
+    if not session_id:
+        session_id = start_swarmui_session()
+        if not session_id:
+            logger.error("Failed to start SwarmUI session.")
+            return None
     r = requests.post(
-        url=f"{SWARMUI_API_URL}/ListModels",
+        url=f"{settings.SWARMUI_API_URL}/ListModels",
         json={
             "session_id": session_id,
             "path": "", # Empty path to use root
@@ -112,7 +113,7 @@ def list_models(session_id) -> Optional[list[str]]:
 def select_model(session_id, model):
     """Forcibly loads a model immediately on some or all backends."""
     r = requests.post(
-        url=f"{SWARMUI_API_URL}/SelectModel",
+        url=f"{settings.SWARMUI_API_URL}/SelectModel",
         json={
             "session_id": session_id,
             "model": model
@@ -130,7 +131,7 @@ def select_model(session_id, model):
 
 def select_model_ws(session_id, model):
     """Select a model using the SwarmUI SelectModelWS websocket API."""
-    ws_url = f"{SWARMUI_WS_URL}/SelectModelWS"
+    ws_url = f"{settings.SWARMUI_WS_URL}/SelectModelWS"
     ws = websocket.create_connection(ws_url)
     # Send the SelectModelWS command
     ws.send(json.dumps({
@@ -175,7 +176,7 @@ def generate_images_ws(
         sampler="euler_ancestral",
         scheduler=""
     ) -> list[str]:
-    ws_url = f"{SWARMUI_WS_URL}/GenerateText2ImageWS"
+    ws_url = f"{settings.SWARMUI_WS_URL}/GenerateText2ImageWS"
     ws = websocket.create_connection(ws_url)
     # Start image generation
     ws.send(json.dumps(
@@ -194,7 +195,7 @@ def generate_images_ws(
             "scheduler": scheduler
         })
     )
-    logger.info("Listening for T2I websocket updates...")
+    logger.info("Listening for T2I websocket updates..")
     image_paths = []
     complete = False
     while True:
@@ -271,7 +272,7 @@ def generate_target(session_id, model, prompt: str, seed):
 
 def download_image(image_path, dest_folder):
     """Download an image from a URL to a specified folder."""
-    image_url = image_path if image_path.startswith("http") else f"{SWARMUI_BASE_URL}/{image_path}"
+    image_url = image_path if image_path.startswith("http") else f"{settings.SWARMUI_BASE_URL}/{image_path}"
     logger.info(f"Downloading image from {image_url} to {dest_folder}")
     if not image_url:
         logger.error("Image URL is empty. Cannot download.")
@@ -288,7 +289,12 @@ def download_image(image_path, dest_folder):
     logger.info(f"Image downloaded to {filename}")
     return filename
 
-def image_from_prompt(prompt: str, preset: Optional[str] = None, seed: Optional[int] = None):
+def image_from_prompt(
+        prompt: str,
+        model: Optional[str] = None,
+        preset: Optional[str] = None,
+        seed: Optional[int] = None
+    ):
     """Generate an image from a prompt using SwarmUI."""
     if not prompt:
         logger.error("Prompt is empty. Please provide a valid prompt.")
@@ -305,27 +311,32 @@ def image_from_prompt(prompt: str, preset: Optional[str] = None, seed: Optional[
     else:
         logger.error("Failed to get current status.")
         return
-    models = list_models(session_id)
-    logger.info(f"Available models: {models}")
-    select_model_ws(session_id, models[0])
+    if not model:
+        models = list_image_models(session_id)
+        logger.info(f"Available models: {models}")
+        if not models:
+            logger.error("No models available in SwarmUI.")
+            return
+        model = models[0]
+    select_model_ws(session_id, model)
     image_files = []
     if preset == "seed_search":
         image_urls = generate_seed_search(
             session_id,
-            models[0],
+            model,
             prompt,
         )
     elif preset == "target" and seed is not None:
         image_urls = generate_target(
             session_id,
-            models[0],
+            model,
             prompt,
             seed,
         )
     else:
         image_urls = generate_images_ws(
             session_id,
-            models[0],
+            model,
             prompt,
         )
     for image_url in image_urls:

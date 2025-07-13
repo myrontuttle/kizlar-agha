@@ -95,19 +95,34 @@ def stop_ollama_container():
         logger.info(f"{OLLAMA_CONTAINER} container is not running.")
 
 def extract_json_from_response(response):
-    # This regex matches ```json ... ```
-    match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
+    # Match ```json{...}```, ```{...}```, or just {...}
+    match = re.search(
+        r"(?:```json\s*)?```?\s*(\{.*?\})\s*```?", response, re.DOTALL
+    )
     if match:
         json_str = match.group(1)
         # Remove trailing commas before } or ]
         json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
-        # Parse the JSON string
         try:
             return json.loads(json_str)
         except json.JSONDecodeError as e:
             logger.error(f"JSON decoding error: {e} in response:\n {json_str}")
             return None
-    return None
+    # Fallback: try to parse any JSON object in the response
+    match = re.search(r"(\{.*\})", response, re.DOTALL)
+    if match:
+        json_str = match.group(1)
+        json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decoding error: {e} in response:\n {json_str}")
+            return None
+    try:
+        return json.loads(response)
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decoding error: {e} in response:\n {response}")
+        return None
 
 def remove_thinking(response):
     """Remove anything between thinking tags from the response."""

@@ -1,14 +1,20 @@
 import streamlit as st
 import json
-from db import init_db, get_profiles, get_profile, save_profile, delete_profile
+from db import init_db, get_profiles, get_profile, save_profile, delete_profile, get_model_selection
 from profile import Profile, ProfileSchema
-from ml.swarm_ui import image_from_prompt
+from ml.swarm_ui import list_image_models
+from ml.llm import list_ollama_models
+from utils import settings
 
 init_db()
 
 st.title("Profile Management")
 
 profiles = get_profiles()  # Should return a list of Profile or ProfileSchema instances
+
+selection = get_model_selection()
+llm_model = selection.llm_model if selection and selection.llm_model else settings.INFERENCE_DEPLOYMENT_NAME
+image_model = selection.image_model if selection and selection.image_model else None
 
 # Display existing profiles in a table format
 cols = st.columns([3, 2, 1])
@@ -38,7 +44,7 @@ for i, profile in enumerate(profiles):
         else:
             if st.button("Generate Images", key=f"generate_images_{i}"):
                 try:
-                    st.session_state["profile_image_path"] = profile.generate_images()
+                    st.session_state["profile_image_path"] = profile.generate_images(image_model, llm_model)
                     save_profile(profile)
                     st.success("Refresh to see images")
                 except Exception as e:
@@ -50,7 +56,7 @@ for i, profile in enumerate(profiles):
 
 # Generate a new profile
 if st.button("Generate New Profile"):
-    profile = Profile.generate_profile()
+    profile = Profile.generate_profile(llm_model)
     st.session_state["generated_profile"] = profile
 
 # Show the generated profile if it exists in session_state
@@ -84,6 +90,16 @@ else:
     profile = get_profile(profile_id)
     profile_data = ProfileSchema.model_validate(profile)
 
+# --- Image Model Fetch Button (outside form) ---
+if st.button("Fetch Image Models", key="fetch_image_models"):
+    image_models = list_image_models()
+    st.session_state["profile_image_models"] = image_models
+
+# --- Chat Model Fetch Button (outside form) ---
+if st.button("Fetch Chat Models", key="fetch_chat_models"):
+    chat_models = list_ollama_models()
+    st.session_state["profile_chat_models"] = chat_models
+
 with st.form("profile_form"):
     name = st.text_input("Name", value=profile_data.name)
     background = st.text_input("Background", value=profile_data.background or "")
@@ -93,16 +109,43 @@ with st.form("profile_form"):
         "Physical Characteristics",
         value=profile_data.physical_characteristics or ""
     )
-    image_model = st.text_input("Image Model", value=profile_data.image_model or "")
+
+    # --- Image Model Selection ---
+    st.markdown("**Image Model**")
+    image_models = st.session_state.get("profile_image_models", [])
+    if image_models:
+        image_model = st.selectbox(
+            "Select Image Model",
+            image_models,
+            index=image_models.index(profile_data.image_model) if profile_data.image_model in image_models else 0,
+            key="profile_image_model_select"
+        )
+    else:
+        image_model = profile_data.image_model or ""
+        st.info("Click 'Fetch Image Models' to load available image models.")
+
     image_seed = st.text_input("Image Seed", value=profile_data.image_seed or "")
     profile_image_path = st.text_input(
         "Profile Image Path",
         value=profile_data.profile_image_path or ""
     )
-    chat_model = st.text_input("Chat Model", value=profile_data.chat_model or "")
+
+    # --- Chat Model Selection ---
+    st.markdown("**Chat Model**")
+    chat_models = st.session_state.get("profile_chat_models", [])
+    if chat_models:
+        chat_model = st.selectbox(
+            "Select Chat Model",
+            chat_models,
+            index=chat_models.index(profile_data.chat_model) if profile_data.chat_model in chat_models else 0,
+            key="profile_chat_model_select"
+        )
+    else:
+        chat_model = profile_data.chat_model or ""
+        st.info("Click 'Fetch Chat Models' to load available chat models.")
 
     st.markdown("---")
-    save = st.form_submit_button("Save", type="primary")
+    save = st.form_submit_button("Save")
 
     if save:
         profile_data.name = name
