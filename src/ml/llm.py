@@ -95,34 +95,38 @@ def stop_ollama_container():
         logger.info(f"{OLLAMA_CONTAINER} container is not running.")
 
 def extract_json_from_response(response):
-    # Match ```json{...}```, ```{...}```, or just {...}
-    match = re.search(
-        r"(?:```json\s*)?```?\s*(\{.*?\})\s*```?", response, re.DOTALL
-    )
+    # Try to extract JSON block
+    match = re.search(r"(?:```json\s*)?```?\s*(\{.*?\})\s*```?", response, re.DOTALL)
     if match:
         json_str = match.group(1)
-        # Remove trailing commas before } or ]
-        json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON decoding error: {e} in response:\n {json_str}")
-            return None
-    # Fallback: try to parse any JSON object in the response
-    match = re.search(r"(\{.*\})", response, re.DOTALL)
-    if match:
-        json_str = match.group(1)
-        json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON decoding error: {e} in response:\n {json_str}")
-            return None
+    else:
+        # Fallback: try to parse any JSON object in the response
+        match = re.search(r"(\{.*\})", response, re.DOTALL)
+        json_str = match.group(1) if match else response
+
+    # Sanitize: remove trailing commas, replace single quotes, fix common issues
+    json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
+    json_str = json_str.replace("'", '"')
+
+    # Try json.loads first
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decoding error: {e} in response:\n {json_str}")
+
+    # Fallback: try ast.literal_eval for Python-style dicts
+    try:
+        return ast.literal_eval(json_str)
+    except Exception as e:
+        logger.error(f"Literal eval error: {e} in response:\n {json_str}")
+
+    # Final fallback: try to parse the original response
     try:
         return json.loads(response)
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON decoding error: {e} in response:\n {response}")
-        return None
+    except Exception as e:
+        logger.error(f"Final fallback JSON decode error: {e} in response:\n {response}")
+
+    return None
 
 def remove_thinking(response):
     """Remove anything between thinking tags from the response."""
@@ -226,9 +230,11 @@ class InferenceLLMConfig(BaseModel):
     @observe(as_type="generation")
     @retry(
         wait=wait_fixed(60),
-        stop=stop_after_attempt(6),
+        stop=stop_after_attempt(3),
         retry=retry_if_exception_type(
-            (litellm.exceptions.RateLimitError, instructor.exceptions.InstructorRetryException)
+            (litellm.exceptions.RateLimitError,
+             litellm.APIConnectionError,
+             instructor.exceptions.InstructorRetryException)
         ),
     )
     def generate_from_messages(

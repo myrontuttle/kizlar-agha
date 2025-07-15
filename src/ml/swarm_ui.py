@@ -246,7 +246,7 @@ def generate_seed_search(session_id, model, prompt: str):
         model=model,
         prompt=prompt,
         neg_prompt=neg_prompt,
-        images=6,
+        images=5,
         seed=-1,  # Random seed
         steps=9,
         cfgscale=3,
@@ -341,7 +341,6 @@ def image_from_prompt(
         )
     for image_url in image_urls:
         image_files.append(download_image(image_url, FILES_DIR))
-    stop_swarmui()
     return image_files
 
 def seed_from_image(image_path: str) -> Optional[int]:

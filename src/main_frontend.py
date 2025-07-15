@@ -11,4 +11,6 @@ st.write(
 
 containers = docker_client.containers.list(all=True)
 
-st.write([container.name for container in containers])
+# Display each container's name and status
+for container in containers:
+    st.write(f"**{container.name}** — Status: `{container.status}`")

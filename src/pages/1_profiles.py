@@ -1,8 +1,8 @@
 import streamlit as st
 import json
 from db import init_db, get_profiles, get_profile, save_profile, delete_profile, get_model_selection
-from profile import Profile, ProfileSchema
-from ml.swarm_ui import list_image_models
+from models import Profile, ProfileSchema, Scenario, ScenarioSchema
+from ml.swarm_ui import list_image_models, seed_from_image
 from ml.llm import list_ollama_models
 from utils import settings
 
@@ -10,7 +10,7 @@ init_db()
 
 st.title("Profile Management")
 
-profiles = get_profiles()  # Should return a list of Profile or ProfileSchema instances
+profiles = get_profiles()
 
 selection = get_model_selection()
 llm_model = selection.llm_model if selection and selection.llm_model else settings.INFERENCE_DEPLOYMENT_NAME
@@ -40,23 +40,35 @@ for i, profile in enumerate(profiles):
             if images:
                 for img in images:
                     if img:
-                        st.image(img, caption=f"{img}", width=120)
+                        img_seed = seed_from_image(img)
+                        st.image(img, caption=f"{img_seed}", width=120)
+                        with st.popover(f"View Full Image {img_seed}"):
+                            st.image(img, caption=f"{img_seed}")
+                        if st.button(f"Make Main Image {img_seed}", key=f"main_image_{i}_{img_seed}"):
+                            profile.generate_main_profile_image(image_model, img_seed)
+                            save_profile(profile)
+                            st.success(f"Main image set for profile {getattr(profile, 'name', i)}")
+
         else:
-            if st.button("Generate Images", key=f"generate_images_{i}"):
+            if st.button("Generate Profile Images", key=f"generate_profile_images_{i}"):
                 try:
-                    st.session_state["profile_image_path"] = profile.generate_images(image_model, llm_model)
+                    st.session_state["profile_image_path"] = profile.generate_sample_profile_images(image_model)
                     save_profile(profile)
                     st.success("Refresh to see images")
                 except Exception as e:
                     st.error(f"Error generating images: {e}")
     with row[2]:
         if st.button("Remove", key=f"remove_{i}"):
+            profile.delete_images()  # Delete images associated with the profile
             delete_profile(profile.id)
             st.warning(f"Removed profile {getattr(profile, 'name', i)}. Refresh to see changes.")
 
+# Add a text input for region_request above the button
+region_request = st.text_input("Which region should this new profile be from?", value="")
+
 # Generate a new profile
 if st.button("Generate New Profile"):
-    profile = Profile.generate_profile(llm_model)
+    profile = Profile.generate_profile(llm_model, region_request)
     st.session_state["generated_profile"] = profile
 
 # Show the generated profile if it exists in session_state
@@ -102,10 +114,10 @@ if st.button("Fetch Chat Models", key="fetch_chat_models"):
 
 with st.form("profile_form"):
     name = st.text_input("Name", value=profile_data.name)
-    background = st.text_input("Background", value=profile_data.background or "")
-    personality = st.text_input("Personality", value=profile_data.personality or "")
-    interests = st.text_input("Interests", value=profile_data.interests or "")
-    physical_characteristics = st.text_input(
+    background = st.text_area("Background", value=profile_data.background or "")
+    personality = st.text_area("Personality", value=profile_data.personality or "")
+    interests = st.text_area("Interests", value=profile_data.interests or "")
+    physical_characteristics = st.text_area(
         "Physical Characteristics",
         value=profile_data.physical_characteristics or ""
     )
@@ -125,7 +137,7 @@ with st.form("profile_form"):
         st.info("Click 'Fetch Image Models' to load available image models.")
 
     image_seed = st.text_input("Image Seed", value=profile_data.image_seed or "")
-    profile_image_path = st.text_input(
+    profile_image_path = st.text_area(
         "Profile Image Path",
         value=profile_data.profile_image_path or ""
     )
@@ -170,4 +182,3 @@ if filenames:
             for img in images:
                 if img:
                     st.image(img, caption=f"{img}")
-

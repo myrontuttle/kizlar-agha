@@ -1,9 +1,7 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, joinedload
 from base import Base
-from profile import Base, Profile, ProfileSchema
-from model_selection import ModelSelection, ModelSelectionSchema
-
+from models import Base, Profile, ProfileSchema, Scenario, ScenarioSchema, ModelSelection, ModelSelectionSchema
 import os
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
@@ -22,8 +20,10 @@ SessionLocal = sessionmaker(bind=engine)
 def init_db():
     # Base.metadata.drop_all(bind=engine)  # Only for dev!
     Base.metadata.create_all(bind=engine)
-    from model_selection import Base as ModelSelectionBase
+    from models import Base as ModelSelectionBase
     ModelSelectionBase.metadata.create_all(bind=engine)
+    from models import Base as ScenarioBase
+    ScenarioBase.metadata.create_all(bind=engine)
 
 def get_profiles():
     with SessionLocal() as session:
@@ -85,14 +85,58 @@ def save_model_selection(data):
         selection = session.query(ModelSelection).first()
         if selection:
             selection.llm_model = data.llm_model
-            selection.embedding_model = data.embedding_model
             selection.image_model = data.image_model
         else:
             selection = ModelSelection(
                 llm_model=data.llm_model,
-                embedding_model=data.embedding_model,
                 image_model=data.image_model,
             )
             session.add(selection)
         session.commit()
         return ModelSelectionSchema.model_validate(selection)
+
+def get_scenarios():
+    with SessionLocal() as session:
+        return session.query(Scenario).all()
+
+def get_scenario(scenario_id: int):
+    with SessionLocal() as session:
+        scenario = session.query(Scenario).options(joinedload(Scenario.profile)).get(scenario_id)
+        return scenario
+
+def save_scenario(data):
+    with SessionLocal() as session:
+        if data.id:
+            scenario = session.query(Scenario).filter_by(id=data.id).first()
+            if scenario:
+                scenario.profile_id = data.profile_id
+                scenario.title = data.title
+                scenario.summary = data.summary
+                scenario.scene_summaries = data.scene_summaries
+                scenario.sample_dialog = data.sample_dialog
+                scenario.greeting = data.greeting
+                scenario.scene_descriptions = data.scene_descriptions
+                scenario.images = data.images
+        else:
+            scenario = Scenario(
+                profile_id=data.profile_id,
+                title=data.title,
+                summary=data.summary,
+                scene_summaries=data.scene_summaries,
+                sample_dialog=data.sample_dialog,
+                greeting=data.greeting,
+                scene_descriptions=data.scene_descriptions,
+                images=data.images
+            )
+            session.add(scenario)
+        session.commit()
+        return ScenarioSchema.model_validate(scenario)
+
+def delete_scenario(scenario_id: int):
+    with SessionLocal() as session:
+        scenario = session.query(Scenario).filter_by(id=scenario_id).first()
+        if scenario:
+            session.delete(scenario)
+            session.commit()
+            return True
+        return False

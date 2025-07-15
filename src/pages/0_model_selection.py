@@ -1,6 +1,6 @@
 import streamlit as st
 from db import init_db, get_model_selection, save_model_selection
-from model_selection import ModelSelectionSchema
+from models import ModelSelection, ModelSelectionSchema
 from ml.llm import list_ollama_models
 from ml.swarm_ui import list_image_models
 
@@ -11,7 +11,7 @@ st.title("Model Selection")
 # Load current selection from DB
 selection = get_model_selection()
 if selection is None:
-    selection = {"llm_model": "", "embedding_model": "", "image_model": ""}
+    selection = {"llm_model": "", "image_model": ""}
 elif not isinstance(selection, dict):
     selection = selection.model_dump()
 
@@ -33,31 +33,9 @@ if llm_models:
     if st.button("Update LLM Model"):
         selection["llm_model"] = "ollama_chat/" + llm_model["name"]
         save_model_selection(ModelSelectionSchema(**selection))
-        st.success(f"LLM model updated to: {llm_model}")
+        st.success(f"LLM model updated to: {selection["llm_model"]}")
 else:
     st.info("Click 'Fetch LLM Models' to load available LLM models.")
-
-# --- Embedding Model Selection ---
-st.header("Embedding Model")
-if st.button("Fetch Embedding Models"):
-    embedding_models = list_ollama_models()
-    st.session_state["embedding_models"] = embedding_models
-else:
-    embedding_models = st.session_state.get("embedding_models", [])
-
-if embedding_models:
-    embedding_model = st.selectbox(
-        "Select Embedding Model",
-        embedding_models,
-        index=embedding_models.index(selection["embedding_model"]) if selection["embedding_model"] in embedding_models else 0,
-        key="embedding_model_select"
-    )
-    if st.button("Update Embedding Model"):
-        selection["embedding_model"] = "ollama/" + embedding_model["name"]
-        save_model_selection(ModelSelectionSchema(**selection))
-        st.success(f"Embedding model updated to: {embedding_model}")
-else:
-    st.info("Click 'Fetch Embedding Models' to load available embedding models.")
 
 # --- Image Model Selection ---
 st.header("Image Model (SwarmUI)")
@@ -86,6 +64,5 @@ st.markdown("---")
 st.write("**Current Selection:**")
 st.json({
     "llm_model": selection["llm_model"],
-    "embedding_model": selection["embedding_model"],
     "image_model": selection["image_model"],
 })
