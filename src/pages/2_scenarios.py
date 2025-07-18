@@ -108,7 +108,8 @@ if st.button("Generate Scenario Images"):
             save_scenario(scenario_obj)
             st.success("Scenario images generated and saved.")
         except Exception as e:
-            st.error(f"Error generating scenario images: {e}")
+            st.error(f"Error generating scenario images: {e}\n"
+                     "Try generating scene descriptions first.")
 
 # --- Display images ---
 images = scenario_data.images
@@ -126,5 +127,6 @@ if images:
 # --- Remove scenario ---
 if selected_scenario != "New":
     if st.button("Remove Scenario"):
+        scenario.delete_images()  # Delete images associated with the scenario=
         delete_scenario(scenario_id)
         st.warning(f"Removed scenario {scenario_data.title}. Refresh to see changes.")

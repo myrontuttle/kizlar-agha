@@ -35,6 +35,14 @@ for i, profile in enumerate(profiles):
     with row[0]:
         st.markdown(details_str)
     with row[1]:
+        if not getattr(profile, "profile_image_description", None):
+            if st.button("Generate Profile Image Description", key=f"generate_profile_image_description_{i}"):
+                try:
+                    st.session_state["profile_image_description"] = profile.generate_profile_image_description(llm_model)
+                    save_profile(profile)
+                    st.success("Profile Image Description Generated")
+                except Exception as e:
+                    st.error(f"Error generating image description: {e}")
         if getattr(profile, "profile_image_path", None):
             images = profile.get_images()
             if images:
@@ -48,7 +56,11 @@ for i, profile in enumerate(profiles):
                             profile.generate_main_profile_image(image_model, img_seed)
                             save_profile(profile)
                             st.success(f"Main image set for profile {getattr(profile, 'name', i)}")
-
+                            break  # Exit loop after setting main image
+                if st.button(f"Delete All Images {getattr(profile, 'name', i)}", key=f"delete_images_{i}"):
+                    profile.delete_images()
+                    save_profile(profile)
+                    st.success(f"All images deleted for profile {getattr(profile, 'name', i)}")
         else:
             if st.button("Generate Profile Images", key=f"generate_profile_images_{i}"):
                 try:
@@ -56,7 +68,7 @@ for i, profile in enumerate(profiles):
                     save_profile(profile)
                     st.success("Refresh to see images")
                 except Exception as e:
-                    st.error(f"Error generating images: {e}")
+                    st.error(f"Error generating images: {e}. Try generating image description first.")
     with row[2]:
         if st.button("Remove", key=f"remove_{i}"):
             profile.delete_images()  # Delete images associated with the profile
@@ -94,6 +106,7 @@ if selected == "New":
         physical_characteristics="",
         image_model="",
         image_seed="",
+        profile_image_description="",
         profile_image_path="",
         chat_model="",
     )
@@ -137,6 +150,10 @@ with st.form("profile_form"):
         st.info("Click 'Fetch Image Models' to load available image models.")
 
     image_seed = st.text_input("Image Seed", value=profile_data.image_seed or "")
+    profile_image_description = st.text_area(
+        "Profile Image Description",
+        value=profile_data.profile_image_description or ""
+    )
     profile_image_path = st.text_area(
         "Profile Image Path",
         value=profile_data.profile_image_path or ""
@@ -167,6 +184,7 @@ with st.form("profile_form"):
         profile_data.physical_characteristics = physical_characteristics
         profile_data.image_model = image_model
         profile_data.image_seed = image_seed
+        profile_data.profile_image_description = profile_image_description
         profile_data.profile_image_path = profile_image_path
         profile_data.chat_model = chat_model
         saved = save_profile(profile_data)

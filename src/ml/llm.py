@@ -49,7 +49,15 @@ def start_ollama_container():
         except docker.errors.APIError as e:
             logger.error(f"Error starting {OLLAMA_CONTAINER} container: {e}")
 
-
+@retry(
+    wait=wait_fixed(30),
+    stop=stop_after_attempt(2),
+    retry=retry_if_exception_type(
+    ),
+    after=lambda retry_state: logger.warning(
+        f"Retrying generation due to error: {retry_state.outcome.exception()}"
+    ),
+)
 def list_ollama_models():
     """List all models available in the Ollama container."""
     start_ollama_container()
@@ -104,9 +112,8 @@ def extract_json_from_response(response):
         match = re.search(r"(\{.*\})", response, re.DOTALL)
         json_str = match.group(1) if match else response
 
-    # Sanitize: remove trailing commas, replace single quotes, fix common issues
+    # Sanitize: remove trailing commas, fix common issues
     json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
-    json_str = json_str.replace("'", '"')
 
     # Try json.loads first
     try:
@@ -229,57 +236,54 @@ class InferenceLLMConfig(BaseModel):
 
     @observe(as_type="generation")
     @retry(
-        wait=wait_fixed(60),
+        wait=wait_fixed(30),
         stop=stop_after_attempt(3),
         retry=retry_if_exception_type(
             (litellm.exceptions.RateLimitError,
              litellm.APIConnectionError,
              instructor.exceptions.InstructorRetryException)
         ),
+        after=lambda retry_state: logger.warning(
+            f"Retrying generation due to error: {retry_state.outcome.exception()}"
+        ),
     )
     def generate_from_messages(
         self, messages: list, schema: Type[BaseModel] = None, *args, **kwargs
     ):
-        try:
-            # check if model supports structured output
-            if schema:
-                if self.supports_response_schema:
-                    res = litellm.completion(
-                        model=self.model_name,
-                        api_key=self.api_key.get_secret_value(),
-                        base_url=self.base_url,
-                        messages=messages,
-                        response_format=schema,
-                    )
-                    if res.choices[0].finish_reason == "content_filter":
-                        raise ValueError(f"Response filtred by content filter")
-                    else:
-                        dict_res = ast.literal_eval(res.choices[0].message.content)
-                        return schema(**dict_res)
-
-                else:
-                    client = instructor.from_litellm(completion, mode=instructor.Mode.JSON)
-                    res, raw_completion = client.chat.completions.create_with_completion(
-                        model=self.model_name,
-                        api_key=self.api_key.get_secret_value(),
-                        base_url=self.base_url,
-                        messages=messages,
-                        response_model=schema,
-                    )
-                    return res
-            else:
+        # Do NOT catch exceptions here, just retry
+        # check if model supports structured output
+        if schema:
+            if self.supports_response_schema:
                 res = litellm.completion(
                     model=self.model_name,
                     api_key=self.api_key.get_secret_value(),
                     base_url=self.base_url,
                     messages=messages,
+                    response_format=schema,
                 )
-
-                return res.choices[0].message.content
-        except Exception as e:
-            # todo handle cost if exception
-            logger.error(f"Error in generating response from LLM: {e}")
-            return None
+                if res.choices[0].finish_reason == "content_filter":
+                    raise ValueError(f"Response filtred by content filter")
+                else:
+                    dict_res = ast.literal_eval(res.choices[0].message.content)
+                    return schema(**dict_res)
+            else:
+                client = instructor.from_litellm(completion, mode=instructor.Mode.JSON)
+                res, raw_completion = client.chat.completions.create_with_completion(
+                    model=self.model_name,
+                    api_key=self.api_key.get_secret_value(),
+                    base_url=self.base_url,
+                    messages=messages,
+                    response_model=schema,
+                )
+                return res
+        else:
+            res = litellm.completion(
+                model=self.model_name,
+                api_key=self.api_key.get_secret_value(),
+                base_url=self.base_url,
+                messages=messages,
+            )
+            return res.choices[0].message.content
 
     def get_model_name(self, *args, **kwargs) -> str:
         return self.model_name

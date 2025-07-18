@@ -219,7 +219,9 @@ def generate_images_ws(
             logger.info(f"Status: {event['status']}")
         if event.get("gen_progress"):
             # Print the generation progress
-            logger.info(f"Generation progress: {event['gen_progress']}")
+            logger.info(f"Generation progress: batch_index: {event['gen_progress']['batch_index']}, "
+                        f"overall_percent: {event['gen_progress']['overall_percent']}, "
+                        f"current_percent: {event['gen_progress']['current_percent']}")
             if event['gen_progress']['overall_percent'] == 1.0 and event['gen_progress']['batch_index'] == str(images-1):
                 complete = True
                 continue
@@ -231,13 +233,14 @@ def generate_images_ws(
                 image_paths.append(image_info)
             else:
                 logger.warning(f"Unexpected image format: {image_info}")
+            logger.debug(f"Image paths: {image_paths}")
             if complete:
                 logger.info("Image generation complete.")
                 break
     ws.close()
     return image_paths
 
-def generate_seed_search(session_id, model, prompt: str):
+def generate_seed_search(session_id, model, prompt: str, num_images=3):
     """Generate a set of images with random seed."""
     neg_prompt = "logo timestamp artist name artist watermark web address copyright " \
     "notice emblem comic title character border dog cow butterfly loli child kids teens text"
@@ -246,7 +249,7 @@ def generate_seed_search(session_id, model, prompt: str):
         model=model,
         prompt=prompt,
         neg_prompt=neg_prompt,
-        images=5,
+        images=num_images,
         seed=-1,  # Random seed
         steps=9,
         cfgscale=3,
@@ -299,7 +302,7 @@ def image_from_prompt(
     if not prompt:
         logger.error("Prompt is empty. Please provide a valid prompt.")
         return
-    logger.info(f"Generating image from prompt: {prompt}")
+    logger.info(f"Generating image from prompt: {prompt} with model: {model}, preset: {preset}, seed: {seed}")
     # Start a SwarmUI session
     session_id = start_swarmui_session()
     if not session_id:
@@ -321,12 +324,14 @@ def image_from_prompt(
     select_model_ws(session_id, model)
     image_files = []
     if preset == "seed_search":
+        logger.info(f"Generating seed search images")
         image_urls = generate_seed_search(
             session_id,
             model,
             prompt,
         )
     elif preset == "target" and seed is not None:
+        logger.info(f"Generating target image with seed: {seed}")
         image_urls = generate_target(
             session_id,
             model,
@@ -334,6 +339,7 @@ def image_from_prompt(
             seed,
         )
     else:
+        logger.info("Generating random image")
         image_urls = generate_images_ws(
             session_id,
             model,

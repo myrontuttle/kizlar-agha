@@ -45,6 +45,7 @@ def save_profile(data):
                 profile.physical_characteristics = data.physical_characteristics
                 profile.image_model = data.image_model
                 profile.image_seed = data.image_seed
+                profile.profile_image_description = data.profile_image_description
                 profile.profile_image_path = data.profile_image_path
                 profile.chat_model = data.chat_model
         else:
@@ -56,6 +57,7 @@ def save_profile(data):
                 physical_characteristics=data.physical_characteristics,
                 image_model=data.image_model,
                 image_seed=data.image_seed,
+                profile_image_description=data.profile_image_description,
                 profile_image_path=data.profile_image_path,
                 chat_model=data.chat_model
             )
