@@ -1,7 +1,7 @@
 import streamlit as st
 from db import init_db, get_model_usage, save_model_usage
 from models import ModelUsage, ModelUsageSchema
-from services import stop_and_clear_error
+from services import stop_models, set_status_to_idle
 from ml.llm import list_ollama_models
 from ml.swarm_ui import list_image_models
 
@@ -17,9 +17,12 @@ elif not isinstance(usage, dict):
     usage = usage.model_dump()
 
 st.write(f"Model usage status: **{usage['status']}**")
-if st.button("Stop Models & Clear Errors", key="clear_error"):
-    stop_and_clear_error()
-    st.success("Errors cleared and status reset to idle.")
+if st.button("Stop Models", key="stop_models"):
+    stop_models()
+    st.success("Models stopped.")
+if st.button("Set Status to Idle", key="set_idle"):
+    set_status_to_idle()
+    st.success("Status set to idle.")
 
 # --- LLM Model sage ---
 st.header("LLM Model")

@@ -3,7 +3,7 @@ import json
 import threading
 from db import init_db, get_profiles, get_profile, save_profile, delete_profile, get_model_usage
 from models import Profile, ProfileSchema, Scenario, ScenarioSchema
-from services import generate_profile, generate_profile_image_description, generate_sample_profile_images, generate_main_profile_image, stop_and_clear_error
+from services import generate_profile, generate_profile_image_description, generate_sample_profile_images, generate_main_profile_image, stop_models, set_status_to_idle
 from ml.swarm_ui import list_image_models, seed_from_image
 from ml.llm import list_ollama_models
 from utils import settings
@@ -20,9 +20,12 @@ image_model = usage.image_model if usage and usage.image_model else None
 status = usage.status if usage else "idle"
 
 st.write(f"Model usage status: **{status}**")
-if st.button("Stop Models & Clear Errors", key="clear_usage"):
-    stop_and_clear_error()
-    st.success("Errors cleared and status reset to idle.")
+if st.button("Stop Models", key="stop_models"):
+    stop_models()
+    st.success("Models stopped.")
+if st.button("Set Status to Idle", key="set_idle"):
+    set_status_to_idle()
+    st.success("Status set to idle.")
 
 # Display existing profiles in a table format
 cols = st.columns([3, 2, 1])
@@ -45,7 +48,7 @@ for i, profile in enumerate(profiles):
         #st.markdown(details_str)
     with row[1]:
         if not getattr(profile, "profile_image_description", None):
-            if st.button("Generate Profile Image Description", key=f"generate_profile_image_description_{i}"):
+            if st.button("Generate Profile Image Description", key=f"generate_profile_image_description_{i}", disabled=(status != "idle")):
                 try:
                     threading.Thread(target=generate_profile_image_description, args=(profile.id, llm_model), daemon=True).start()
                     st.success("Profile Image Description started in background. Refresh to see progress.")
@@ -86,7 +89,7 @@ st.header("Create New Profile")
 special_requests = st.text_input("Any special requests for this profile (e.g., region, hair color)?", value="")
 
 # Generate a new profile
-if st.button("Generate New Profile"):
+if st.button("Generate New Profile", disabled=(status != "idle")):
     threading.Thread(target=generate_profile, args=(llm_model, special_requests), daemon=True).start()
     st.info("Profile generation started in the background. Refresh to see progress.")
 

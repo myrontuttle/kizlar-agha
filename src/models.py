@@ -115,8 +115,7 @@ class Scenario(Base):
     title = Column(String, nullable=False)
     summary = Column(String)
     scene_summaries = Column(String)
-    sample_dialog = Column(String)
-    greeting = Column(String)
+    invitation = Column(String)
     scene_descriptions = Column(String)
     images = Column(String)
     profile = relationship("Profile", back_populates="scenarios")
@@ -129,8 +128,7 @@ class Scenario(Base):
             "title": self.title,
             "summary": self.summary,
             "scene_summaries": self.scene_summaries,
-            "sample_dialog": self.sample_dialog,
-            "greeting": self.greeting,
+            "invitation": self.invitation,
             "scene_descriptions": self.scene_descriptions,
             "images": self.images,
         }
@@ -185,8 +183,7 @@ class ScenarioSchema(BaseModel):
     title: str
     summary: str | None = None
     scene_summaries: str | None = None
-    sample_dialog: str | None = None
-    greeting: str | None = None
+    invitation: str | None = None
     scene_descriptions: str | None = None
     images: str | None = None
 

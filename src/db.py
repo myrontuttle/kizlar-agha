@@ -18,7 +18,7 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
 def init_db():
-    #Base.metadata.drop_all(bind=engine)  # Only for dev!
+    # Base.metadata.drop_all(bind=engine)  # Only for dev!
     Base.metadata.create_all(bind=engine)
     from models import Base as ModelUsageBase
     ModelUsageBase.metadata.create_all(bind=engine)
@@ -117,8 +117,7 @@ def save_scenario(data):
                 scenario.title = data.title
                 scenario.summary = data.summary
                 scenario.scene_summaries = data.scene_summaries
-                scenario.sample_dialog = data.sample_dialog
-                scenario.greeting = data.greeting
+                scenario.invitation = data.invitation
                 scenario.scene_descriptions = data.scene_descriptions
                 scenario.images = data.images
         else:
@@ -127,8 +126,7 @@ def save_scenario(data):
                 title=data.title,
                 summary=data.summary,
                 scene_summaries=data.scene_summaries,
-                sample_dialog=data.sample_dialog,
-                greeting=data.greeting,
+                invitation=data.invitation,
                 scene_descriptions=data.scene_descriptions,
                 images=data.images
             )

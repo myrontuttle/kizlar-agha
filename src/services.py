@@ -7,13 +7,16 @@ from ml.swarm_ui import image_from_prompt, stop_swarmui
 from utils import settings, logger
 
 
-def stop_and_clear_error():
-    """Stops models and returns status to idle"""
+def stop_models():
+    """Stops models"""
+    stop_ollama_container()
+    stop_swarmui()
+
+def set_status_to_idle():
+    """Return status to idle"""
     usage = get_model_usage()
     if usage.status != "idle":
-        logger.info("Clearing error state, stopping models.")
-        stop_ollama_container()
-        stop_swarmui()
+        logger.info("Clearing error state, returning status to idle.")
         usage.status = "idle"
         save_model_usage(usage)
     else:
@@ -231,11 +234,11 @@ def generate_main_profile_image(profile_id, image_model: str, image_seed: str):
 def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Scenario":
     """Generate a scenario based on the following prompts."""
     profile = get_profile(profile_id)
-    if not profile.profile_image_description:
-        raise ValueError("Cannot generate scenario: profile id is empty.")
+    if not profile:
+        raise ValueError("Cannot generate scenario: profile is empty.")
     usage = get_model_usage()
     if usage.status != "idle":
-        logger.warning("Model usage is not idle, cannot generate images.")
+        logger.warning("Model usage is not idle, cannot generate scenario.")
         return
     usage.status = "Generating Scenario"
     save_model_usage(usage)
@@ -254,19 +257,19 @@ def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Sce
                     "scenario involving the user and a character. Think of the scenario as an episode of "
                     "a tv show or a collection of scenes in a play. For the scenario you must provide a "
                     "short 'title', 2 to 3 sentence 'summary', 6 to 7 single sentence 'scene_summaries', "
-                    "'sample_dialog' containing one sentence each between the user and the character "
-                    "(prefaced with '#user:' or '#character:'), "
-                    "and an initial single sentence 'greeting' from the character to the user to start the "
-                    "scenario.  Creativity and conciseness are vital, as you must invent details that "
+                    "and an initial single sentence 'invitation' as a message from the character to the user "
+                    "tempting/enticing/seducing them to start the scenario. Do not include or make up the user's "
+                    "name, only the character's name. Use 'you' and 'your' in place of the user's name. "
+                    "Creativity and conciseness are vital, as you must invent details that "
                     "make the scenario interesting and engaging while limiting the size of your response "
                     "to fit in an AI model's limited context window (short evocative phrases are best). "
                     "For scenarios consider the character's interests, background (e.g., cultural "
                     "activities, language lessons, holidays, traditions, and travel destinations based on "
-                    "where they are from or grew up), and special_requests (if provided). Creativity and "
-                    "conciseness are key. "
-                    "Use proper json format with the keys: 'title', 'summary', 'scene_summaries', "
-                    "'sample_dialog', and 'greeting', and make sure the values are all strings except for"
-                    "'scene_summaries' and 'sample_dialog' which are arrays of strings."
+                    "where they are from or grew up), and special_requests (if provided). For the invitation, "
+                    "consider the character's style of speech based on where they are from or grew up. "
+                    "Use proper json format with the keys: 'title', 'summary', 'scene_summaries', and "
+                    "'invitation', and make sure the values are all strings wrapped in quoatation marks "
+                    "except for 'scene_summaries' which is an array of strings."
                 },
                 {
                     "role": "user",
@@ -274,7 +277,7 @@ def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Sce
                     f"Character background: {profile.background}.\n"
                     f"Character interests: {profile.interests}.\n"
                     f"Special requests: {special_requests}.\n"
-                    "Generate a scenario in which the 'scene_summaries' gradually lead to the male user and "
+                    "Generate a scenario in which the 'scene_summaries' lead to the male user and "
                     "the female character involved in one or more sexual acts (e.g., blowjob, titjob, sex). "
                     "The final scenes should be them having sex and the post coitus afterglow."
                 }
@@ -292,14 +295,13 @@ def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Sce
                 profile_id=profile.id,
                 summary=scenario_data.get("summary"),
                 scene_summaries=scenario_data.get("scene_summaries"),
-                sample_dialog=scenario_data.get("sample_dialog"),
-                greeting=scenario_data.get("greeting")
+                invitation=scenario_data.get("invitation")
             )
         )
         usage.status = "idle"
     except Exception as e:
         logger.error(f"Error generating scenario: {e}")
-        usage.status = "Error generating scenario"
+        usage.status = f"Error generating scenario: {e}"
     finally:
         save_model_usage(usage)
         logger.info(f"Scenario data generated: {scenario_data}.")
