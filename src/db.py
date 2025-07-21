@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, joinedload
 from base import Base
-from models import Base, Profile, ProfileSchema, Scenario, ScenarioSchema, ModelSelection, ModelSelectionSchema
+from models import Base, Profile, ProfileSchema, Scenario, ScenarioSchema, ModelUsage, ModelUsageSchema
 import os
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
@@ -18,10 +18,10 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
 def init_db():
-    # Base.metadata.drop_all(bind=engine)  # Only for dev!
+    #Base.metadata.drop_all(bind=engine)  # Only for dev!
     Base.metadata.create_all(bind=engine)
-    from models import Base as ModelSelectionBase
-    ModelSelectionBase.metadata.create_all(bind=engine)
+    from models import Base as ModelUsageBase
+    ModelUsageBase.metadata.create_all(bind=engine)
     from models import Base as ScenarioBase
     ScenarioBase.metadata.create_all(bind=engine)
 
@@ -75,27 +75,29 @@ def delete_profile(profile_id: int):
             return True
         return False
 
-def get_model_selection():
+def get_model_usage():
     with SessionLocal() as session:
-        selection = session.query(ModelSelection).first()
-        if selection:
-            return ModelSelectionSchema.model_validate(selection)
+        usage = session.query(ModelUsage).first()
+        if usage:
+            return ModelUsageSchema.model_validate(usage)
         return None
 
-def save_model_selection(data):
+def save_model_usage(data):
     with SessionLocal() as session:
-        selection = session.query(ModelSelection).first()
-        if selection:
-            selection.llm_model = data.llm_model
-            selection.image_model = data.image_model
+        usage = session.query(ModelUsage).first()
+        if usage:
+            usage.llm_model = data.llm_model
+            usage.image_model = data.image_model
+            usage.status = data.status
         else:
-            selection = ModelSelection(
+            usage = ModelUsage(
                 llm_model=data.llm_model,
                 image_model=data.image_model,
+                status=data.status
             )
-            session.add(selection)
+            session.add(usage)
         session.commit()
-        return ModelSelectionSchema.model_validate(selection)
+        return ModelUsageSchema.model_validate(usage)
 
 def get_scenarios():
     with SessionLocal() as session:

@@ -1,7 +1,9 @@
 import streamlit as st
 import json
-from db import init_db, get_profiles, get_profile, save_profile, delete_profile, get_model_selection
+import threading
+from db import init_db, get_profiles, get_profile, save_profile, delete_profile, get_model_usage
 from models import Profile, ProfileSchema, Scenario, ScenarioSchema
+from services import generate_profile, generate_profile_image_description, generate_sample_profile_images, generate_main_profile_image, stop_and_clear_error
 from ml.swarm_ui import list_image_models, seed_from_image
 from ml.llm import list_ollama_models
 from utils import settings
@@ -12,9 +14,15 @@ st.title("Profile Management")
 
 profiles = get_profiles()
 
-selection = get_model_selection()
-llm_model = selection.llm_model if selection and selection.llm_model else settings.INFERENCE_DEPLOYMENT_NAME
-image_model = selection.image_model if selection and selection.image_model else None
+usage = get_model_usage()
+llm_model = usage.llm_model if usage and usage.llm_model else settings.INFERENCE_DEPLOYMENT_NAME
+image_model = usage.image_model if usage and usage.image_model else None
+status = usage.status if usage else "idle"
+
+st.write(f"Model usage status: **{status}**")
+if st.button("Stop Models & Clear Errors", key="clear_usage"):
+    stop_and_clear_error()
+    st.success("Errors cleared and status reset to idle.")
 
 # Display existing profiles in a table format
 cols = st.columns([3, 2, 1])
@@ -33,14 +41,14 @@ for i, profile in enumerate(profiles):
     # Display each row
     row = st.columns([3, 2, 1])
     with row[0]:
-        st.markdown(details_str)
+        st.json(vars(profile))
+        #st.markdown(details_str)
     with row[1]:
         if not getattr(profile, "profile_image_description", None):
             if st.button("Generate Profile Image Description", key=f"generate_profile_image_description_{i}"):
                 try:
-                    st.session_state["profile_image_description"] = profile.generate_profile_image_description(llm_model)
-                    save_profile(profile)
-                    st.success("Profile Image Description Generated")
+                    threading.Thread(target=generate_profile_image_description, args=(profile.id, llm_model), daemon=True).start()
+                    st.success("Profile Image Description started in background. Refresh to see progress.")
                 except Exception as e:
                     st.error(f"Error generating image description: {e}")
         if getattr(profile, "profile_image_path", None):
@@ -52,47 +60,35 @@ for i, profile in enumerate(profiles):
                         st.image(img, caption=f"{img_seed}", width=120)
                         with st.popover(f"View Full Image {img_seed}"):
                             st.image(img, caption=f"{img_seed}")
-                        if st.button(f"Make Main Image {img_seed}", key=f"main_image_{i}_{img_seed}"):
-                            profile.generate_main_profile_image(image_model, img_seed)
-                            save_profile(profile)
-                            st.success(f"Main image set for profile {getattr(profile, 'name', i)}")
+                        if st.button(f"Make Main Image {img_seed}", key=f"main_image_{i}_{img_seed}", disabled=(status != "idle")):
+                            threading.Thread(target=generate_main_profile_image, args=(profile.id, image_model, img_seed), daemon=True).start()
+                            st.info("Image generation started in the background. Refresh to see progress.")
                             break  # Exit loop after setting main image
                 if st.button(f"Delete All Images {getattr(profile, 'name', i)}", key=f"delete_images_{i}"):
                     profile.delete_images()
                     save_profile(profile)
                     st.success(f"All images deleted for profile {getattr(profile, 'name', i)}")
         else:
-            if st.button("Generate Profile Images", key=f"generate_profile_images_{i}"):
-                try:
-                    st.session_state["profile_image_path"] = profile.generate_sample_profile_images(image_model)
-                    save_profile(profile)
-                    st.success("Refresh to see images")
-                except Exception as e:
-                    st.error(f"Error generating images: {e}. Try generating image description first.")
+            if st.button("Generate Profile Images", key=f"generate_profile_images_{i}", disabled=(status != "idle")):
+                threading.Thread(target=generate_sample_profile_images, args=(profile.id, image_model), daemon=True).start()
+                st.info("Image generation started in the background. Refresh to see progress.")
     with row[2]:
         if st.button("Remove", key=f"remove_{i}"):
             profile.delete_images()  # Delete images associated with the profile
             delete_profile(profile.id)
             st.warning(f"Removed profile {getattr(profile, 'name', i)}. Refresh to see changes.")
 
+# --- Profile creation form ---
+st.markdown("---")
+st.header("Create New Profile")
+
 # Add a text input for region_request above the button
-region_request = st.text_input("Which region should this new profile be from?", value="")
+special_requests = st.text_input("Any special requests for this profile (e.g., region, hair color)?", value="")
 
 # Generate a new profile
 if st.button("Generate New Profile"):
-    profile = Profile.generate_profile(llm_model, region_request)
-    st.session_state["generated_profile"] = profile
-
-# Show the generated profile if it exists in session_state
-if "generated_profile" in st.session_state:
-    profile = st.session_state["generated_profile"]
-    st.write("Generated Profile:")
-    st.json(vars(profile))
-    if st.button("Save Generated Profile"):
-        saved = save_profile(profile)
-        st.success(f"Profile saved (ID: {saved.id})")
-        # Optionally, remove from session_state after saving
-        del st.session_state["generated_profile"]
+    threading.Thread(target=generate_profile, args=(llm_model, special_requests), daemon=True).start()
+    st.info("Profile generation started in the background. Refresh to see progress.")
 
 profile_names = [f"{p.id}: {p.name}" for p in profiles]
 selected = st.selectbox("Select a profile", ["New"] + profile_names)
@@ -135,7 +131,7 @@ with st.form("profile_form"):
         value=profile_data.physical_characteristics or ""
     )
 
-    # --- Image Model Selection ---
+    # --- Image Model Usage ---
     st.markdown("**Image Model**")
     image_models = st.session_state.get("profile_image_models", [])
     if image_models:
@@ -159,7 +155,7 @@ with st.form("profile_form"):
         value=profile_data.profile_image_path or ""
     )
 
-    # --- Chat Model Selection ---
+    # --- Chat Model Usage ---
     st.markdown("**Chat Model**")
     chat_models = st.session_state.get("profile_chat_models", [])
     if chat_models:
@@ -189,14 +185,3 @@ with st.form("profile_form"):
         profile_data.chat_model = chat_model
         saved = save_profile(profile_data)
         st.success(f"Profile saved (ID: {saved.id})")
-
-# Display the generated image if available
-filenames = st.session_state.get("profile_image_path", "")
-if filenames:
-    st.write(f"Generated image files: `{filenames}`")
-    if isinstance(filenames, str):
-        images = json.loads(filenames)
-        if isinstance(images, list) and images:
-            for img in images:
-                if img:
-                    st.image(img, caption=f"{img}")

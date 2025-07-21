@@ -52,8 +52,6 @@ def start_ollama_container():
 @retry(
     wait=wait_fixed(30),
     stop=stop_after_attempt(2),
-    retry=retry_if_exception_type(
-    ),
     after=lambda retry_state: logger.warning(
         f"Retrying generation due to error: {retry_state.outcome.exception()}"
     ),
