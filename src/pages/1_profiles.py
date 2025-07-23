@@ -20,12 +20,16 @@ image_model = usage.image_model if usage and usage.image_model else None
 status = usage.status if usage else "idle"
 
 st.write(f"Model usage status: **{status}**")
-if st.button("Stop Models", key="stop_models"):
-    stop_models()
-    st.success("Models stopped.")
-if st.button("Set Status to Idle", key="set_idle"):
-    set_status_to_idle()
-    st.success("Status set to idle.")
+# --- Button row ---
+btn_col1, btn_col2 = st.columns(2)
+with btn_col1:
+    if st.button("Stop Models", key="stop_models"):
+        stop_models()
+        st.success("Models stopped.")
+with btn_col2:
+    if st.button("Set Status to Idle", key="set_idle"):
+        set_status_to_idle()
+        st.success("Status set to idle.")
 
 # Display existing profiles in a table format
 cols = st.columns([3, 2, 1])

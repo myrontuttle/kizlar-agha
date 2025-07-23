@@ -2,7 +2,7 @@ import streamlit as st
 import json
 import threading
 from db import (
-    init_db, get_scenarios, get_scenario, save_scenario, delete_scenario,
+    get_scenarios_for_profile, init_db, get_scenarios, get_scenario, save_scenario, delete_scenario,
     get_profiles, get_profile, get_model_usage
 )
 from models import Profile, ProfileSchema, Scenario, ScenarioSchema
@@ -23,12 +23,16 @@ image_model = usage.image_model if usage and usage.image_model else ""
 status = usage.status if usage else "idle"
 
 st.write(f"Model usage status: **{status}**")
-if st.button("Stop Models", key="stop_models"):
-    stop_models()
-    st.success("Models stopped.")
-if st.button("Set Status to Idle", key="set_idle"):
-    set_status_to_idle()
-    st.success("Status set to idle.")
+# --- Button row ---
+btn_col1, btn_col2 = st.columns(2)
+with btn_col1:
+    if st.button("Stop Models", key="stop_models"):
+        stop_models()
+        st.success("Models stopped.")
+with btn_col2:
+    if st.button("Set Status to Idle", key="set_idle"):
+        set_status_to_idle()
+        st.success("Status set to idle.")
 
 # --- Profile selection for scenario generation ---
 selected_profile = st.selectbox("Select a profile for scenario", profile_names)
@@ -39,6 +43,8 @@ profile_id = int(selected_profile.split(":")[0])
 character_profile = get_profile(profile_id)
 
 # --- Scenario selection ---
+scenarios = get_scenarios_for_profile(profile_id)
+scenario_names = [f"{s.id}: {s.title}" for s in scenarios]
 selected_scenario = st.selectbox("Select a scenario", ["New"] + scenario_names)
 if selected_scenario == "New":
     scenario_data = ScenarioSchema(
@@ -84,18 +90,21 @@ with st.form("scenario_form"):
         st.success(f"Scenario saved (ID: {saved.id})")
 
 # --- Generate scene descriptions ---
-if st.button("Generate Scene Descriptions", disabled=(status != "idle" or selected_scenario != "New")):
+if st.button("Generate Scene Descriptions", disabled=(status != "idle" or selected_scenario == "New")):
     scenario_obj = get_scenario(scenario_id) if selected_scenario != "New" else None
     if scenario_obj:
-        threading.Thread(target=generate_scene_descriptions, args=(llm_model), daemon=True).start()
+        threading.Thread(target=generate_scene_descriptions, args=(scenario_obj.id, llm_model), daemon=True).start()
         st.info("Scenario generation started in the background. Refresh to see progress.")
 
 # --- Generate scenario images ---
-if st.button("Generate Scenario Images", disabled=(status != "idle" or scenario_data.scene_descriptions != "[]")):
-    scenario_obj = get_scenario(scenario_id) if selected_scenario != "New" else None
-    if scenario_obj:
-        threading.Thread(target=generate_scenario_images, args=(scenario_obj.id, image_model), daemon=True).start()
-        st.info("Image generation started in the background. Refresh to see progress.")
+if character_profile.image_seed is None:
+    st.warning("Please set an image seed in the profile to generate images.")
+else:
+    if st.button("Generate Scenario Images", disabled=(status != "idle" or scenario_data.scene_descriptions == "" or scenario_data.scene_descriptions == "[]")):
+        scenario_obj = get_scenario(scenario_id) if selected_scenario != "New" else None
+        if scenario_obj:
+            threading.Thread(target=generate_scenario_images, args=(scenario_obj.id, image_model), daemon=True).start()
+            st.info("Image generation started in the background. Refresh to see progress.")
 
 # --- Display images ---
 images = scenario_data.images

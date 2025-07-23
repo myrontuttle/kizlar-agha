@@ -17,12 +17,16 @@ elif not isinstance(usage, dict):
     usage = usage.model_dump()
 
 st.write(f"Model usage status: **{usage['status']}**")
-if st.button("Stop Models", key="stop_models"):
-    stop_models()
-    st.success("Models stopped.")
-if st.button("Set Status to Idle", key="set_idle"):
-    set_status_to_idle()
-    st.success("Status set to idle.")
+# --- Button row ---
+btn_col1, btn_col2 = st.columns(2)
+with btn_col1:
+    if st.button("Stop Models", key="stop_models"):
+        stop_models()
+        st.success("Models stopped.")
+with btn_col2:
+    if st.button("Set Status to Idle", key="set_idle"):
+        set_status_to_idle()
+        st.success("Status set to idle.")
 
 # --- LLM Model sage ---
 st.header("LLM Model")

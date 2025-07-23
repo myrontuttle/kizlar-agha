@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, joinedload
 from base import Base
-from models import Base, Profile, ProfileSchema, Scenario, ScenarioSchema, ModelUsage, ModelUsageSchema
+from models import Base, ModelUsage, ModelUsageSchema, Profile, ProfileSchema, Scenario, ScenarioSchema, Message, MessageSchema
 import os
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
@@ -22,8 +22,12 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     from models import Base as ModelUsageBase
     ModelUsageBase.metadata.create_all(bind=engine)
+    from models import Base as ProfileBase
+    ProfileBase.metadata.create_all(bind=engine)
     from models import Base as ScenarioBase
     ScenarioBase.metadata.create_all(bind=engine)
+    from models import Base as MessageBase
+    MessageBase.metadata.create_all(bind=engine)
 
 def get_profiles():
     with SessionLocal() as session:
@@ -103,9 +107,15 @@ def get_scenarios():
     with SessionLocal() as session:
         return session.query(Scenario).all()
 
+def get_scenarios_for_profile(profile_id: int):
+    with SessionLocal() as session:
+        return session.query(Scenario).filter_by(profile_id=profile_id).all()
+
 def get_scenario(scenario_id: int):
     with SessionLocal() as session:
-        scenario = session.query(Scenario).options(joinedload(Scenario.profile)).get(scenario_id)
+        scenario = session.query(Scenario)\
+            .options(joinedload(Scenario.profile), joinedload(Scenario.messages))\
+            .get(scenario_id)
         return scenario
 
 def save_scenario(data):
@@ -142,3 +152,50 @@ def delete_scenario(scenario_id: int):
             session.commit()
             return True
         return False
+
+def get_messages(scenario_id):
+    """Get all messages for a scenario."""
+    with SessionLocal() as session:
+        messages = session.query(Message).filter_by(scenario_id=scenario_id).order_by(Message.order).all()
+        return [MessageSchema.model_validate(m) for m in messages]
+
+def save_message(data):
+    """Save a message for a scenario."""
+    with SessionLocal() as session:
+        if data.id:
+            message = session.query(Message).filter_by(id=data.id).first()
+            if message:
+                message.scenario_id = data.scenario_id
+                message.role = data.role
+                message.content = data.content
+                message.order = data.order
+        else:
+            message = Message(
+                scenario_id=data.scenario_id,
+                role=data.role,
+                content=data.content,
+                order=data.order
+            )
+            session.add(message)
+        session.commit()
+        return MessageSchema.model_validate(message)
+
+def delete_message(message_id: int):
+    """Delete a message by its ID."""
+    with SessionLocal() as session:
+        message = session.query(Message).filter_by(id=message_id).first()
+        if message:
+            session.delete(message)
+            session.commit()
+            return True
+        return False
+
+def get_next_message_order(scenario_id):
+    with SessionLocal() as session:
+        last_message = (
+            session.query(Message)
+            .filter_by(scenario_id=scenario_id)
+            .order_by(Message.order.desc())
+            .first()
+        )
+        return (last_message.order + 1) if last_message else 0

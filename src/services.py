@@ -1,7 +1,6 @@
-
 import json
-from models import Profile, Scenario
-from db import get_model_usage, save_model_usage, get_profile, save_profile, get_scenario, save_scenario
+from models import Profile, Scenario, MessageSchema
+from db import get_model_usage, save_model_usage, get_profile, save_profile, get_scenario, save_scenario, get_messages, get_next_message_order, save_message
 from ml.llm import InferenceLLMConfig, stop_ollama_container, extract_json_from_response, remove_thinking
 from ml.swarm_ui import image_from_prompt, stop_swarmui
 from utils import settings, logger
@@ -269,7 +268,8 @@ def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Sce
                     "consider the character's style of speech based on where they are from or grew up. "
                     "Use proper json format with the keys: 'title', 'summary', 'scene_summaries', and "
                     "'invitation', and make sure the values are all strings wrapped in quoatation marks "
-                    "except for 'scene_summaries' which is an array of strings."
+                    "except for 'scene_summaries' which is an array of strings. Double check the response is "
+                    "valid json (apprpriate commas, quote marks, and brackets) before returning it.",
                 },
                 {
                     "role": "user",
@@ -289,7 +289,7 @@ def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Sce
         if not scenario_data:
             logger.error(f"Failed to extract scenario data from response: {response}")
             raise ValueError("Failed to extract scenario data from response")
-        save_scenario(
+        saved_senario = save_scenario(
             Scenario(
                 title=scenario_data.get("title", "Default Title"),
                 profile_id=profile.id,
@@ -298,6 +298,14 @@ def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Sce
                 invitation=scenario_data.get("invitation")
             )
         )
+        # Add the invitation as the first message
+        first_message = MessageSchema(
+            role="character",
+            content=scenario_data.get("invitation"),
+            scenario_id=saved_senario.id,
+            order=get_next_message_order(scenario_id=saved_senario.id)
+        )
+        save_message(first_message)
         usage.status = "idle"
     except Exception as e:
         logger.error(f"Error generating scenario: {e}")
@@ -306,9 +314,8 @@ def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Sce
         save_model_usage(usage)
         logger.info(f"Scenario data generated: {scenario_data}.")
 
-def generate_scene_description(scenario_id, llm_model: str, scene_id: int, previous_scene_description: str = ""):
+def generate_scene_description(scenario, llm_model: str, scene_id: int, previous_scene_description: str = ""):
     """Generate a scene description based on the profile's physical characteristics and scene."""
-    scenario = get_scenario(scenario_id)
     if not scenario.profile.physical_characteristics:
         raise ValueError("Cannot generate scene description: physical_characteristics is empty.")
     usage = get_model_usage()
@@ -316,7 +323,8 @@ def generate_scene_description(scenario_id, llm_model: str, scene_id: int, previ
         logger.warning("Model usage is not idle, cannot generate images.")
         return
     scene_summary = scenario.get_scene_summaries_as_array()[scene_id] if scenario.get_scene_summaries_as_array() else ""
-    usage.status = "Generating Scenario Description"
+    total_scenes = len(scenario.get_scene_summaries_as_array())
+    usage.status = f"Generating Scenario Description {scene_id + 1} of {total_scenes}"
     save_model_usage(usage)
     try:
         llm = InferenceLLMConfig(
@@ -380,7 +388,7 @@ def generate_scene_descriptions(scenario_id, llm_model: str) -> str:
     descriptions = []
     previous_description = ""
     for i, summary in enumerate(scene_summaries):
-        description = scenario.generate_scene_description(llm_model, i, previous_description)
+        description = generate_scene_description(scenario, llm_model, i, previous_description)
         descriptions.append(description)
         previous_description = description
     if not descriptions:
@@ -388,6 +396,7 @@ def generate_scene_descriptions(scenario_id, llm_model: str) -> str:
     # Save the descriptions as a proper json array to the scene_descriptions field
     scenario.scene_descriptions = json.dumps(descriptions)
     save_scenario(scenario)
+    logger.info(f"Scenario scene descriptions saved to: {scenario.scene_descriptions}")
     return scenario
 
 def generate_scenario_images(scenario_id, image_model: str) -> str:
@@ -395,17 +404,20 @@ def generate_scenario_images(scenario_id, image_model: str) -> str:
     scenario = get_scenario(scenario_id)
     if not scenario.scene_descriptions or scenario.scene_descriptions == "[]":
         raise ValueError("Cannot generate images: scene_descriptions is empty.")
+    if not scenario.profile.image_seed:
+        raise ValueError("Cannot generate images: profile image_seed is empty.")
     usage = get_model_usage()
     if usage.status != "idle":
         logger.warning("Model usage is not idle, cannot generate images.")
         return
     scene_descriptions = scenario.get_scene_descriptions()
+    total_scenes = len(scene_descriptions)
     logger.debug(f"Generating scenario images for {scene_descriptions}")
     images = []
-    usage.status = "Generating Scenario Images"
-    save_model_usage(usage)
     try:
         for i, description in enumerate(scene_descriptions):
+            usage.status = f"Generating Scenario Images {i + 1} of {total_scenes}"
+            save_model_usage(usage)
             prompt = ""
             if i == 0:
                 prompt = description
@@ -440,3 +452,76 @@ def generate_scenario_images(scenario_id, image_model: str) -> str:
         save_model_usage(usage)
         logger.info(f"Image generation completed for scenario ID {scenario_id}")
     return scenario
+
+def respond_to_chat(llm_model, profile_id, scenario_id, scene_num, message):
+    """Respond to a chat message based on the profile and scenario"""
+    profile = get_profile(profile_id)
+    scenario = get_scenario(scenario_id)
+    if not profile or not scenario:
+        raise ValueError("Cannot respond to chat: profile or scenario is empty.")
+    scenes = scenario.get_scene_summaries_as_array()
+    if not scenes or scene_num >= len(scenes):
+        raise ValueError(f"Cannot respond to chat: scene_num {scene_num} is out of bounds for scenario with {len(scenes)} scenes.")
+    scene = scenes[scene_num]
+    previous_messages = get_messages(scenario_id)
+    previous_contents = [msg.content for msg in previous_messages]
+    previous_messages_str = json.dumps(previous_contents)
+    usage = get_model_usage()
+    if usage.status != "idle":
+        logger.warning("Model usage is not idle, cannot respond to chat.")
+        return
+    usage.status = "Responding to Chat"
+    save_model_usage(usage)
+    try:
+        llm = InferenceLLMConfig(
+            model_name=llm_model,
+            base_url=settings.INFERENCE_BASE_URL,
+            api_key=settings.INFERENCE_API_KEY,
+        )
+        logger.info(f"Responding to: {message}")
+        response = llm.generate_from_messages(
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"You are {profile.name} having a conversation with the user. "
+                    "Gestures and other non-verbal actions are written between asterisks (for example, *waving* "
+                    "or *moving closer*). When referring to the user, use 'you' or 'your'. "
+                    "Be creative with words. Use onomatopoeia and describe sounds, smells, tastes, textures in "
+                    "detail. Aim for 2-3 sentences per response on average. In sexual moments, be thorough and "
+                    "expressive. Describe all sounds, feelings, touches, etc. that you experience. In "
+                    "sexual situations, be progressively lewd, erotic, and explicit. Apply a slow-burn approach "
+                    "to these scenes. Allow the user to control the speed at which they go. "
+                    "Keep the response concise and focused on the user's message.",
+                },
+                {
+                    "role": "user",
+                    "content": f"Profile of {profile.name}: {profile.background}, {profile.personality}, {profile.interests}.\n"
+                               f"Scenario: {scenario.summary}.\n"
+                               f"Scene: {scene}\n"
+                               f"Previous messages: {previous_messages_str}.\n"
+                               f"Message: {message}",
+                },
+            ]
+        )
+        if not response:
+            raise ValueError("Failed to generate chat response: No content in response")
+        usage.status = "idle"
+    except Exception as e:
+        logger.error(f"Error responding to chat: {e}")
+        usage.status = f"Error responding to chat: {e}"
+    finally:
+        save_model_usage(usage)
+        logger.info(f"Chat response generated: {response}")
+    return response
+
+def add_message(scenario_id, role, content):
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("Message content must be a non-empty string.")
+    order = get_next_message_order(scenario_id)
+    msg = MessageSchema(
+        scenario_id=scenario_id,
+        role=role,
+        content=content,
+        order=order
+    )
+    return save_message(msg)

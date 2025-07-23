@@ -119,6 +119,7 @@ class Scenario(Base):
     scene_descriptions = Column(String)
     images = Column(String)
     profile = relationship("Profile", back_populates="scenarios")
+    messages = relationship("Message", back_populates="scenario", cascade="all, delete-orphan")
 
     def model_dump(self, *args, **kwargs):
         """Override to return a dictionary representation of the scenario."""
@@ -167,6 +168,9 @@ class Scenario(Base):
             logger.warning("No images to delete.")
             return
         image_paths = json.loads(self.images)
+        # Flatten the list if it's a list of lists
+        if image_paths and isinstance(image_paths[0], list):
+            image_paths = [item for sublist in image_paths for item in sublist]
         for path in image_paths:
             try:
                 os.remove(path)
@@ -186,6 +190,37 @@ class ScenarioSchema(BaseModel):
     invitation: str | None = None
     scene_descriptions: str | None = None
     images: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class Message(Base):
+    __tablename__ = "messages"
+    id = Column(Integer, primary_key=True)
+    scenario_id = Column(Integer, ForeignKey('scenarios.id', ondelete="CASCADE"), nullable=False)
+    role = Column(String, nullable=False)
+    content = Column(String, nullable=False)
+    order = Column(Integer, nullable=False)
+    scenario = relationship("Scenario", back_populates="messages")
+
+    def model_dump(self, *args, **kwargs):
+        """Override to return a dictionary representation of the message."""
+        return {
+            "id": self.id,
+            "scenario_id": self.scenario_id,
+            "order": self.order,
+            "role": self.role,
+            "content": self.content
+        }
+
+
+class MessageSchema(BaseModel):
+    id: int | None = None
+    scenario_id: int
+    order: int
+    role: str
+    content: str
 
     class Config:
         from_attributes = True
