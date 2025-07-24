@@ -196,7 +196,7 @@ docker-dev: docker-build
 # run docker-compose
 docker-compose:
 	@echo "${YELLOW}Running docker-compose...${NC}"
-	docker-compose up --build
+	docker-compose up -d --build
 
 
 # This build the documentation based on current code 'src/' and 'docs/' directories

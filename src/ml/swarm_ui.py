@@ -240,7 +240,7 @@ def generate_images_ws(
     ws.close()
     return image_paths
 
-def generate_seed_search(session_id, model, prompt: str, num_images=3):
+def generate_seed_search(session_id, model, prompt: str, num_images=1):
     """Generate a set of images with random seed."""
     neg_prompt = "logo timestamp artist name artist watermark web address copyright " \
     "notice emblem comic title character border dog cow butterfly loli child kids teens text"

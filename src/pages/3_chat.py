@@ -1,8 +1,8 @@
 import streamlit as st
 import json
 from db import (
-    get_messages, get_scenarios_for_profile, get_scenario,
-    get_profiles, get_profile, get_model_usage
+    delete_message, get_messages, get_scenarios_for_profile, get_scenario,
+    get_profiles, get_profile, get_model_usage, save_message
 )
 from services import respond_to_chat, stop_models, set_status_to_idle, add_message
 
@@ -89,14 +89,55 @@ with st.container(height=400):
     if "messages" not in st.session_state or st.session_state.get("scenario_id") != scenario_id:
         previous_messages = get_messages(scenario_id)
         st.session_state.messages = [
-            {"role": msg.role, "content": msg.content} for msg in previous_messages
+            {"role": msg.role, "content": msg.content, "index": i}
+            for i, msg in enumerate(previous_messages)
         ]
         st.session_state.scenario_id = scenario_id
-    for msg in st.session_state.messages:
-        if msg["role"] == "user":
-            st.markdown(f"**You:**<br>{msg['content']}<hr>", unsafe_allow_html=True)
-        elif msg["role"] == "character":
-            st.markdown(f"**{character_profile.name}:**<br>{msg['content']}<hr>", unsafe_allow_html=True)
+
+    # Track if a message was edited or deleted to rerun after change
+    rerun_needed = False
+
+    for idx, msg in enumerate(st.session_state.messages):
+        col_msg, col_edit_delete = st.columns([9, 1])
+        with col_msg:
+            st.markdown(
+                f"**{'You' if msg['role']=='user' else character_profile.name}:**<br>{msg['content']}",
+                unsafe_allow_html=True,
+            )
+        with col_edit_delete:
+            if st.button("✏️", key=f"edit_{idx}"):
+                st.session_state["edit_index"] = idx
+                st.session_state["edit_content"] = msg["content"]
+                rerun_needed = True
+            if st.button("🗑️", key=f"delete_{idx}"):
+                # Remove from session state
+                st.session_state.messages.pop(idx)
+                # Remove from DB as well
+                delete_message(msg['id'])
+                rerun_needed = True
+                break  # Prevent index errors after deletion
+
+        # Show edit box if this message is being edited
+        if st.session_state.get("edit_index") == idx:
+            new_content = st.text_area(
+                "Edit message", value=st.session_state.get("edit_content", ""), key=f"edit_box_{idx}"
+            )
+            if st.button("Save", key=f"save_{idx}"):
+                st.session_state.messages[idx]["content"] = new_content
+                # Update in DB as well
+                msg['content'] = new_content
+                msg['id'] = st.session_state.messages[idx].get('id', None)
+                save_message(msg)
+                st.session_state["edit_index"] = None
+                st.session_state["edit_content"] = ""
+                rerun_needed = True
+            if st.button("Cancel", key=f"cancel_{idx}"):
+                st.session_state["edit_index"] = None
+                st.session_state["edit_content"] = ""
+                rerun_needed = True
+        st.markdown("---")  # Separator line
+    if rerun_needed:
+        st.rerun()
 
 # --- Clear the input before widget is instantiated ---
 if st.session_state.get("clear_input", False):

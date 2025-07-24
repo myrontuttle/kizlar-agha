@@ -53,36 +53,32 @@ def start_ollama_container():
     wait=wait_fixed(30),
     stop=stop_after_attempt(2),
     after=lambda retry_state: logger.warning(
-        f"Retrying generation due to error: {retry_state.outcome.exception()}"
+        f"Retrying list Ollama models due to error: {retry_state.outcome.exception()}"
     ),
 )
 def list_ollama_models():
     """List all models available in the Ollama container."""
     start_ollama_container()
-    try:
-        response = requests.get(
-            f"{settings.INFERENCE_BASE_URL}/api/tags",
-            headers={"Accept": "application/json"},
-        )
-        if response.status_code != 200:
-            logger.error(f"Failed to list Ollama models: {response.status_code} - {response.text}")
-            return []
-        response = response.json()
-        if isinstance(response, dict) and "models" in response:
-            response = response["models"]
-        elif isinstance(response, list):
-            response = [model["name"] for model in response]
-        else:
-            logger.error("Unexpected response format from Ollama API.")
-            return []
-        logger.info(f"Available Ollama models: {response}")
-        if not response:
-            logger.warning("No models found in Ollama.")
-            return []
-        return response
-    except Exception as e:
-        logger.error(f"Error listing Ollama models: {e}")
+    response = requests.get(
+        f"{settings.INFERENCE_BASE_URL}/api/tags",
+        headers={"Accept": "application/json"},
+    )
+    if response.status_code != 200:
+        logger.error(f"Failed to list Ollama models: {response.status_code} - {response.text}")
         return []
+    response = response.json()
+    if isinstance(response, dict) and "models" in response:
+        response = response["models"]
+    elif isinstance(response, list):
+        response = [model["name"] for model in response]
+    else:
+        logger.error("Unexpected response format from Ollama API.")
+        return []
+    logger.info(f"Available Ollama models: {response}")
+    if not response:
+        logger.warning("No models found in Ollama.")
+        return []
+    return response
 
 def stop_ollama_container():
     """Stop the Ollama container if it is running."""

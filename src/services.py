@@ -4,7 +4,11 @@ from db import get_model_usage, save_model_usage, get_profile, save_profile, get
 from ml.llm import InferenceLLMConfig, stop_ollama_container, extract_json_from_response, remove_thinking
 from ml.swarm_ui import image_from_prompt, stop_swarmui
 from utils import settings, logger
-
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_fixed
+)
 
 def stop_models():
     """Stops models"""
@@ -22,7 +26,14 @@ def set_status_to_idle():
         logger.info("No error state to clear, models already idle.")
     return usage.status
 
-def generate_profile(llm_model: str, special_requests: str) -> "Profile":
+@retry(
+    wait=wait_fixed(15),
+    stop=stop_after_attempt(2),
+    after=lambda retry_state: logger.warning(
+        f"Retrying scenario generation due to error: {retry_state.outcome.exception()}"
+    ),
+)
+def generate_profile(llm_model: str, special_requests: str):
     """Generate a profile based on the following prompts."""
     usage = get_model_usage()
     if usage.status != "idle":
@@ -30,72 +41,70 @@ def generate_profile(llm_model: str, special_requests: str) -> "Profile":
         return
     usage.status = "Generating Profile"
     save_model_usage(usage)
-    try:
-        llm = InferenceLLMConfig(
-            model_name=llm_model,
-            base_url=settings.INFERENCE_BASE_URL,
-            api_key=settings.INFERENCE_API_KEY,
-        )
-        logger.info(f"Generating profile using Ollama LLM: {llm.model_name}")
-        response = llm.generate_from_messages(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "As a character profile generator, your job is to develop a "
-                    "multi-dimensional persona for use in role playing scenarios with AI models. "
-                    "You must provide details about the character's 'background', 'personality', 'interests', "
-                    "and 'physical_characteristics' that cohesively work together to create a unique "
-                    "individual. Creativity and conciseness are vital, as you must invent details "
-                    "that add depth to the character while limiting the size of your response to fit "
-                    "in an AI model's limited context window (single words and evocative phrases are "
-                    "best). For 'background' include where they were born, use that to infer their "
-                    "ethnicity, education, occupation, socioeconomic status, and a few significant life events "
-                    "that shaped them (200 words or less). Use their background to infer their "
-                    "'personality' traits, such as their temperament, desires, quirks, and how they interact "
-                    "with others (100 words or less). Briefly list their 'interests' based on their "
-                    "background and personality (75 words or less). List their 'physical_characteristics' "
-                    "(based on ethnicity) as a prompt for an image generator "
-                    "(i.e., generic, evocative sentence fragments, no specific measurements) "
-                    "with an adjective and their gender (e.g., sexy woman), "
-                    "body description, skin tone, hair color and style, facial features, and eye color using "
-                    "as few words as possible (30 words or less). Infer their 'name' based on where they were "
-                    "born. Only include their name in the 'name' field, in all other fields use their "
-                    "pronoun (e.g., she, he, they). Use proper json format with the keys: 'name', 'background', "
-                    "'personality', 'interests', and 'physical_characteristics', but make sure the "
-                    "values are all strings without internal quotation marks.",
-                },
-                {
-                    "role": "user",
-                    "content": "Generate the profile of a sexy and seductive woman for erotic scenarios. "
-                    f"{special_requests}. Be as sexually "
-                    "explicit as possible for the 'physical_characteristics' including descriptions of her "
-                    "breast size and legs for her body description to create a vivid image.",
-                },
-            ]
-        )
-        if not response:
-            raise ValueError("Failed to generate profile: No content in response")
-        profile_data = extract_json_from_response(response)
-        if not profile_data:
-            logger.error(f"Failed to extract profile data from response: {response}")
-            raise ValueError("Failed to extract profile data from response")
-        logger.info(f"Profile data generated: {profile_data}")
-        save_profile(
-            Profile(
-                name=profile_data.get("name", "Default Name"),
-                background=profile_data.get("background"),
-                personality=profile_data.get("personality"),
-                interests=profile_data.get("interests"),
-                physical_characteristics=profile_data.get("physical_characteristics")
-            )
-        )
-        usage.status = "idle"
-    except Exception as e:
-        logger.error(f"Error generating profile: {e}")
-        usage.status = "Error generating profile"
-    finally:
+    llm = InferenceLLMConfig(
+        model_name=llm_model,
+        base_url=settings.INFERENCE_BASE_URL,
+        api_key=settings.INFERENCE_API_KEY,
+    )
+    logger.info(f"Generating profile using Ollama LLM: {llm.model_name}")
+    response = llm.generate_from_messages(
+        messages=[
+            {
+                "role": "system",
+                "content": "As a character profile generator, your job is to develop a "
+                "multi-dimensional persona for use in role playing scenarios with AI models. "
+                "You must provide details about the character's 'background', 'personality', 'interests', "
+                "and 'physical_characteristics' that cohesively work together to create a unique "
+                "individual. Creativity and conciseness are vital, as you must invent details "
+                "that add depth to the character while limiting the size of your response to fit "
+                "in an AI model's limited context window (single words and evocative phrases are "
+                "best). For 'background' include where they were born, use that to infer their "
+                "ethnicity, education, occupation, socioeconomic status, and a few significant life events "
+                "that shaped them (200 words or less). Use their background to infer their "
+                "'personality' traits, such as their temperament, desires, quirks, and how they interact "
+                "with others (100 words or less). Briefly list their 'interests' based on their "
+                "background and personality (75 words or less). List their 'physical_characteristics' "
+                "(based on ethnicity) as a prompt for an image generator "
+                "(i.e., generic, evocative sentence fragments, no specific measurements) "
+                "with an adjective and their gender (e.g., sexy woman), "
+                "body description, skin tone, hair color and style, facial features, and eye color using "
+                "as few words as possible (30 words or less). Infer their 'name' based on where they were "
+                "born. Only include their name in the 'name' field, in all other fields use their "
+                "pronoun (e.g., she, he, they). Use proper json format with the keys: 'name', 'background', "
+                "'personality', 'interests', and 'physical_characteristics', but make sure the "
+                "values are all strings without internal quotation marks.",
+            },
+            {
+                "role": "user",
+                "content": "Generate the profile of a sexy and seductive woman for erotic scenarios. "
+                f"{special_requests}. Be as sexually "
+                "explicit as possible for the 'physical_characteristics' including descriptions of her "
+                "breast size and legs for her body description to create a vivid image.",
+            },
+        ]
+    )
+    if not response:
+        usage.status = "Error generating profile: No content in response"
         save_model_usage(usage)
-        logger.info(f"Profile generated")
+        raise ValueError("Failed to generate profile: No content in response")
+    profile_data = extract_json_from_response(response)
+    if not profile_data:
+        usage.status = "Error generating profile: Failed to extract profile data from response"
+        save_model_usage(usage)
+        raise ValueError(f"Failed to extract profile data from response: {response}")
+    logger.info(f"Profile data generated: {profile_data}")
+    save_profile(
+        Profile(
+            name=profile_data.get("name", "Default Name"),
+            background=profile_data.get("background"),
+            personality=profile_data.get("personality"),
+            interests=profile_data.get("interests"),
+            physical_characteristics=profile_data.get("physical_characteristics")
+        )
+    )
+    usage.status = "idle"
+    save_model_usage(usage)
+    logger.info(f"Profile generated")
 
 def generate_profile_image_description(profile_id, llm_model: str) -> str:
     """Generate a description for the profile image based on the profile's physical characteristics."""
@@ -153,7 +162,7 @@ def generate_profile_image_description(profile_id, llm_model: str) -> str:
         save_model_usage(usage)
         logger.info(f"Generated profile image description: {response}")
 
-def generate_sample_profile_images(profile_id, image_model):
+def generate_sample_profile_images(profile_id, image_model, num_images=3):
     """Generate a set of images based on a profile's image description."""
     profile = get_profile(profile_id)
     if not profile.profile_image_description:
@@ -163,24 +172,45 @@ def generate_sample_profile_images(profile_id, image_model):
         logger.warning("Model usage is not idle, cannot generate images.")
         return
     logger.info(f"Starting background image generation for profile ID {profile_id} using model {image_model}")
-    usage.status = "Generating Sample Profile Images"
-    save_model_usage(usage)
     try:
-        filenames = image_from_prompt(profile.profile_image_description, model=image_model, preset="seed_search")
-        logger.info(f"Image(s) generated and saved to {filenames}")
-        if not filenames:
-            raise ValueError("Failed to generate images: No filenames returned")
-        elif isinstance(filenames, list):
-            # Convert list of filenames to a JSON string
-            filenames = json.dumps(filenames)
-        elif isinstance(filenames, str) and filenames.startswith("[") and "'" in filenames:
-            # Replace single quotes with double quotes
-            filenames = filenames.replace("'", '"')
+        # Load existing image paths if present
+        if profile.profile_image_path:
+            try:
+                image_list = json.loads(profile.profile_image_path)
+                if not isinstance(image_list, list):
+                    image_list = []
+            except Exception:
+                image_list = []
         else:
-            # If it's a single filename, wrap it in a list
-            filenames = json.dumps([filenames])
-        profile.profile_image_path = filenames
-        save_profile(profile)
+            image_list = []
+
+        for i in range(num_images):
+            usage.status = f"Generating Sample Profile Image {i + 1} of {num_images}"
+            save_model_usage(usage)
+            filename = image_from_prompt(profile.profile_image_description, model=image_model, preset="seed_search")
+            logger.info(f"Image(s) generated and saved to {filename}")
+            # Normalize filename(s) to a list of strings
+            if not filename:
+                logger.error("Failed to generate image: No filenames returned")
+                continue
+            if isinstance(filename, list):
+                image_list.extend(filename)
+            elif isinstance(filename, str) and filename.startswith("[") and "'" in filename:
+                # Replace single quotes with double quotes and parse as list
+                filename = filename.replace("'", '"')
+                try:
+                    parsed = json.loads(filename)
+                    if isinstance(parsed, list):
+                        image_list.extend(parsed)
+                    else:
+                        image_list.append(parsed)
+                except Exception:
+                    image_list.append(filename)
+            else:
+                image_list.append(filename)
+            # Save after each addition
+            profile.profile_image_path = json.dumps(image_list)
+            save_profile(profile)
         logger.info(f"Profile image path set to: {profile.profile_image_path}")
         usage.status = "idle"
     except Exception as e:
@@ -230,89 +260,95 @@ def generate_main_profile_image(profile_id, image_model: str, image_seed: str):
         logger.info(f"Background image generation completed for profile ID {profile_id}")
     return profile
 
+@retry(
+    wait=wait_fixed(15),
+    stop=stop_after_attempt(2),
+    after=lambda retry_state: logger.warning(
+        f"Retrying scenario generation due to error: {retry_state.outcome.exception()}"
+    ),
+)
 def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Scenario":
     """Generate a scenario based on the following prompts."""
     profile = get_profile(profile_id)
     if not profile:
-        raise ValueError("Cannot generate scenario: profile is empty.")
+        logger.error("Cannot generate scenario: profile is empty.")
+        return
     usage = get_model_usage()
     if usage.status != "idle":
-        logger.warning("Model usage is not idle, cannot generate scenario.")
+        logger.error("Model usage is not idle, cannot generate scenario.")
         return
     usage.status = "Generating Scenario"
     save_model_usage(usage)
-    try:
-        llm = InferenceLLMConfig(
-            model_name=llm_model,
-            base_url=settings.INFERENCE_BASE_URL,
-            api_key=settings.INFERENCE_API_KEY,
-        )
-        logger.info(f"Generating scenario with {profile.name}")
-        response = llm.generate_from_messages(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "As a scenario generator, your job is to develop an engaging role-playing "
-                    "scenario involving the user and a character. Think of the scenario as an episode of "
-                    "a tv show or a collection of scenes in a play. For the scenario you must provide a "
-                    "short 'title', 2 to 3 sentence 'summary', 6 to 7 single sentence 'scene_summaries', "
-                    "and an initial single sentence 'invitation' as a message from the character to the user "
-                    "tempting/enticing/seducing them to start the scenario. Do not include or make up the user's "
-                    "name, only the character's name. Use 'you' and 'your' in place of the user's name. "
-                    "Creativity and conciseness are vital, as you must invent details that "
-                    "make the scenario interesting and engaging while limiting the size of your response "
-                    "to fit in an AI model's limited context window (short evocative phrases are best). "
-                    "For scenarios consider the character's interests, background (e.g., cultural "
-                    "activities, language lessons, holidays, traditions, and travel destinations based on "
-                    "where they are from or grew up), and special_requests (if provided). For the invitation, "
-                    "consider the character's style of speech based on where they are from or grew up. "
-                    "Use proper json format with the keys: 'title', 'summary', 'scene_summaries', and "
-                    "'invitation', and make sure the values are all strings wrapped in quoatation marks "
-                    "except for 'scene_summaries' which is an array of strings. Double check the response is "
-                    "valid json (apprpriate commas, quote marks, and brackets) before returning it.",
-                },
-                {
-                    "role": "user",
-                    "content": f"Character name: {profile.name}.\n"
-                    f"Character background: {profile.background}.\n"
-                    f"Character interests: {profile.interests}.\n"
-                    f"Special requests: {special_requests}.\n"
-                    "Generate a scenario in which the 'scene_summaries' lead to the male user and "
-                    "the female character involved in one or more sexual acts (e.g., blowjob, titjob, sex). "
-                    "The final scenes should be them having sex and the post coitus afterglow."
-                }
-            ]
-        )
-        if not response:
-            raise ValueError("Failed to generate scenario: No content in response")
-        scenario_data = extract_json_from_response(response)
-        if not scenario_data:
-            logger.error(f"Failed to extract scenario data from response: {response}")
-            raise ValueError("Failed to extract scenario data from response")
-        saved_senario = save_scenario(
-            Scenario(
-                title=scenario_data.get("title", "Default Title"),
-                profile_id=profile.id,
-                summary=scenario_data.get("summary"),
-                scene_summaries=scenario_data.get("scene_summaries"),
-                invitation=scenario_data.get("invitation")
-            )
-        )
-        # Add the invitation as the first message
-        first_message = MessageSchema(
-            role="character",
-            content=scenario_data.get("invitation"),
-            scenario_id=saved_senario.id,
-            order=get_next_message_order(scenario_id=saved_senario.id)
-        )
-        save_message(first_message)
-        usage.status = "idle"
-    except Exception as e:
-        logger.error(f"Error generating scenario: {e}")
-        usage.status = f"Error generating scenario: {e}"
-    finally:
+    llm = InferenceLLMConfig(
+        model_name=llm_model,
+        base_url=settings.INFERENCE_BASE_URL,
+        api_key=settings.INFERENCE_API_KEY,
+    )
+    logger.info(f"Generating scenario with {profile.name}")
+    response = llm.generate_from_messages(
+        messages=[
+            {
+                "role": "system",
+                "content": "As a scenario generator, your job is to develop an engaging role-playing "
+                "scenario involving the user and a character. Think of the scenario as an episode of "
+                "a tv show or a collection of scenes in a play. For the scenario you must provide a "
+                "short 'title', 2 to 3 sentence 'summary', 6 to 7 single sentence 'scene_summaries', "
+                "and an initial single sentence 'invitation' as a message from the character to the user "
+                "tempting/enticing/seducing them to start the scenario. Do not include or make up the user's "
+                "name, only the character's name. Use 'you' and 'your' in place of the user's name. "
+                "Creativity and conciseness are vital, as you must invent details that "
+                "make the scenario interesting and engaging while limiting the size of your response "
+                "to fit in an AI model's limited context window (short evocative phrases are best). "
+                "For scenarios consider the character's interests, background (e.g., cultural "
+                "activities, language lessons, holidays, traditions, and travel destinations based on "
+                "where they are from or grew up), and special_requests (if provided). For the invitation, "
+                "consider the character's style of speech based on where they are from or grew up. "
+                "Use proper json format with the keys: 'title', 'summary', 'scene_summaries', and "
+                "'invitation', and make sure the values are all strings wrapped in quoatation marks "
+                "except for 'scene_summaries' which is an array of strings. Double check the response is "
+                "valid json (apprpriate commas, quote marks, and brackets) before returning it.",
+            },
+            {
+                "role": "user",
+                "content": f"Character name: {profile.name}.\n"
+                f"Character background: {profile.background}.\n"
+                f"Character interests: {profile.interests}.\n"
+                f"Special requests: {special_requests}.\n"
+                "Generate a scenario in which the 'scene_summaries' lead to the male user and "
+                "the female character involved in one or more sexual acts (e.g., blowjob, titjob, sex). "
+                "The final scenes should be them having sex and the post coitus afterglow."
+            }
+        ]
+    )
+    if not response:
+        usage.status = "Error generating scenario: No content in response"
         save_model_usage(usage)
-        logger.info(f"Scenario data generated: {scenario_data}.")
+        raise ValueError("Failed to generate scenario: No content in response")
+    scenario_data = extract_json_from_response(response)
+    if not scenario_data:
+        usage.status = "Error extracting scenario data"
+        save_model_usage(usage)
+        raise ValueError(f"Failed to extract scenario data from response: {response}")
+    saved_senario = save_scenario(
+        Scenario(
+            title=scenario_data.get("title", "Default Title"),
+            profile_id=profile.id,
+            summary=scenario_data.get("summary"),
+            scene_summaries=scenario_data.get("scene_summaries"),
+            invitation=scenario_data.get("invitation")
+        )
+    )
+    # Add the invitation as the first message
+    first_message = MessageSchema(
+        role="character",
+        content=scenario_data.get("invitation"),
+        scenario_id=saved_senario.id,
+        order=get_next_message_order(scenario_id=saved_senario.id)
+    )
+    save_message(first_message)
+    usage.status = "idle"
+    save_model_usage(usage)
+    logger.info(f"Scenario data generated: {scenario_data}.")
 
 def generate_scene_description(scenario, llm_model: str, scene_id: int, previous_scene_description: str = ""):
     """Generate a scene description based on the profile's physical characteristics and scene."""
@@ -324,7 +360,7 @@ def generate_scene_description(scenario, llm_model: str, scene_id: int, previous
         return
     scene_summary = scenario.get_scene_summaries_as_array()[scene_id] if scenario.get_scene_summaries_as_array() else ""
     total_scenes = len(scenario.get_scene_summaries_as_array())
-    usage.status = f"Generating Scenario Description {scene_id + 1} of {total_scenes}"
+    usage.status = f"Generating Scene Description {scene_id + 1} of {total_scenes}"
     save_model_usage(usage)
     try:
         llm = InferenceLLMConfig(
@@ -483,9 +519,9 @@ def respond_to_chat(llm_model, profile_id, scenario_id, scene_num, message):
             messages=[
                 {
                     "role": "system",
-                    "content": f"You are {profile.name} having a conversation with the user. "
-                    "Gestures and other non-verbal actions are written between asterisks (for example, *waving* "
-                    "or *moving closer*). When referring to the user, use 'you' or 'your'. "
+                    "content": f"You are {profile.name}, having a conversation with the user during a scene in a "
+                    "scenario. Gestures and other non-verbal actions are written between asterisks (for example, "
+                    "*waving* or *moving closer*). When referring to the user, use 'you' or 'your'. "
                     "Be creative with words. Use onomatopoeia and describe sounds, smells, tastes, textures in "
                     "detail. Aim for 2-3 sentences per response on average. In sexual moments, be thorough and "
                     "expressive. Describe all sounds, feelings, touches, etc. that you experience. In "
