@@ -83,14 +83,12 @@ def generate_profile(llm_model: str, special_requests: str):
             },
         ]
     )
+    usage.status = "idle"
+    save_model_usage(usage)
     if not response:
-        usage.status = "Error generating profile: No content in response"
-        save_model_usage(usage)
         raise ValueError("Failed to generate profile: No content in response")
     profile_data = extract_json_from_response(response)
     if not profile_data:
-        usage.status = "Error generating profile: Failed to extract profile data from response"
-        save_model_usage(usage)
         raise ValueError(f"Failed to extract profile data from response: {response}")
     logger.info(f"Profile data generated: {profile_data}")
     save_profile(
@@ -102,8 +100,6 @@ def generate_profile(llm_model: str, special_requests: str):
             physical_characteristics=profile_data.get("physical_characteristics")
         )
     )
-    usage.status = "idle"
-    save_model_usage(usage)
     logger.info(f"Profile generated")
 
 def generate_profile_image_description(profile_id, llm_model: str) -> str:
@@ -150,16 +146,15 @@ def generate_profile_image_description(profile_id, llm_model: str) -> str:
                 },
             ]
         )
+        usage.status = "idle"
+        save_model_usage(usage)
         if not response:
             raise ValueError("Failed to generate profile image description: No content in response")
         profile.profile_image_description = response
         save_profile(profile)
-        usage.status = "idle"
     except Exception as e:
         logger.error(f"Error generating profile image description: {e}")
-        usage.status = "Error generating profile image description"
     finally:
-        save_model_usage(usage)
         logger.info(f"Generated profile image description: {response}")
 
 def generate_sample_profile_images(profile_id, image_model, num_images=3):
@@ -188,6 +183,8 @@ def generate_sample_profile_images(profile_id, image_model, num_images=3):
             usage.status = f"Generating Sample Profile Image {i + 1} of {num_images}"
             save_model_usage(usage)
             filename = image_from_prompt(profile.profile_image_description, model=image_model, preset="seed_search")
+            usage.status = "idle"
+            save_model_usage(usage)
             logger.info(f"Image(s) generated and saved to {filename}")
             # Normalize filename(s) to a list of strings
             if not filename:
@@ -212,12 +209,9 @@ def generate_sample_profile_images(profile_id, image_model, num_images=3):
             profile.profile_image_path = json.dumps(image_list)
             save_profile(profile)
         logger.info(f"Profile image path set to: {profile.profile_image_path}")
-        usage.status = "idle"
     except Exception as e:
         logger.error(f"Error generating images for profile ID {profile_id}: {e}")
-        usage.status = "Error generating images"
     finally:
-        save_model_usage(usage)
         logger.info(f"Background image generation completed for profile ID {profile_id}")
     return profile
 
@@ -234,6 +228,8 @@ def generate_main_profile_image(profile_id, image_model: str, image_seed: str):
     save_model_usage(usage)
     try:
         filenames = image_from_prompt(profile.profile_image_description, model=image_model, preset="target", seed=image_seed)
+        usage.status = "idle"
+        save_model_usage(usage)
         logger.info(f"Image(s) generated and saved to {filenames}")
         if not filenames:
             raise ValueError("Failed to generate images: No filenames returned")
@@ -251,12 +247,9 @@ def generate_main_profile_image(profile_id, image_model: str, image_seed: str):
         profile.image_seed = image_seed
         save_profile(profile)
         logger.info(f"Profile image path set to: {profile.profile_image_path}")
-        usage.status = "idle"
     except Exception as e:
         logger.error(f"Error generating images for profile ID {profile_id}: {e}")
-        usage.status = "Error generating images"
     finally:
-        save_model_usage(usage)
         logger.info(f"Background image generation completed for profile ID {profile_id}")
     return profile
 
@@ -267,7 +260,7 @@ def generate_main_profile_image(profile_id, image_model: str, image_seed: str):
         f"Retrying scenario generation due to error: {retry_state.outcome.exception()}"
     ),
 )
-def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Scenario":
+def generate_scenario(profile_id, llm_model: str, special_requests="") -> "Scenario":
     """Generate a scenario based on the following prompts."""
     profile = get_profile(profile_id)
     if not profile:
@@ -320,14 +313,12 @@ def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Sce
             }
         ]
     )
+    usage.status = "idle"
+    save_model_usage(usage)
     if not response:
-        usage.status = "Error generating scenario: No content in response"
-        save_model_usage(usage)
         raise ValueError("Failed to generate scenario: No content in response")
     scenario_data = extract_json_from_response(response)
     if not scenario_data:
-        usage.status = "Error extracting scenario data"
-        save_model_usage(usage)
         raise ValueError(f"Failed to extract scenario data from response: {response}")
     saved_senario = save_scenario(
         Scenario(
@@ -346,8 +337,6 @@ def generate_scenario(profile_id, llm_model: str, special_requests: str) -> "Sce
         order=get_next_message_order(scenario_id=saved_senario.id)
     )
     save_message(first_message)
-    usage.status = "idle"
-    save_model_usage(usage)
     logger.info(f"Scenario data generated: {scenario_data}.")
 
 def generate_scene_description(scenario, llm_model: str, scene_id: int, previous_scene_description: str = ""):
@@ -402,16 +391,16 @@ def generate_scene_description(scenario, llm_model: str, scene_id: int, previous
                 },
             ]
         )
+        usage.status = "idle"
+        save_model_usage(usage)
         #Strip out anything between <think>...</think> tags
         response = remove_thinking(response)
         if not response:
             raise ValueError("Failed to generate scene description: No content in response")
-        usage.status = "idle"
     except Exception as e:
         logger.error(f"Error generating scene description: {e}")
         usage.status = "Error generating scene description"
     finally:
-        save_model_usage(usage)
         logger.info(f"Generated scene description: {response}")
     return response
 
@@ -469,6 +458,8 @@ def generate_scenario_images(scenario_id, image_model: str) -> str:
                 preset="target",
                 seed=scenario.profile.image_seed
             )
+            usage.status = "idle"
+            save_model_usage(usage)
             if not image:
                 logger.error(f"Failed to generate image for description: {prompt}")
                 continue
@@ -480,12 +471,9 @@ def generate_scenario_images(scenario_id, image_model: str) -> str:
         scenario.images = json.dumps(images)
         save_scenario(scenario)
         logger.info(f"Scenario images saved to: {scenario.images}")
-        usage.status = "idle"
     except Exception as e:
         logger.error(f"Error generating images for scenario ID {scenario_id}: {e}")
-        usage.status = "Error generating images"
     finally:
-        save_model_usage(usage)
         logger.info(f"Image generation completed for scenario ID {scenario_id}")
     return scenario
 
@@ -539,14 +527,13 @@ def respond_to_chat(llm_model, profile_id, scenario_id, scene_num, message):
                 },
             ]
         )
+        usage.status = "idle"
+        save_model_usage(usage)
         if not response:
             raise ValueError("Failed to generate chat response: No content in response")
-        usage.status = "idle"
     except Exception as e:
         logger.error(f"Error responding to chat: {e}")
-        usage.status = f"Error responding to chat: {e}"
     finally:
-        save_model_usage(usage)
         logger.info(f"Chat response generated: {response}")
     return response
 
