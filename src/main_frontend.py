@@ -31,7 +31,7 @@ with btn_col2:
     if st.button("Set Status to Idle", key="set_idle"):
         set_status_to_idle()
         st.success("Status set to idle.")
-
+st.markdown("---")
 if st.button("Surprise Me"):
     if usage['llm_model'] == "":
         llm_models = list_ollama_models()
@@ -59,29 +59,43 @@ if st.button("Surprise Me"):
         if not profile.profile_image_description:
             st.write(f"Generating image for profile {profile.name}")
             generate_profile_image_description(profile.id, usage['llm_model'])
-            st.write(f"Image description generated for profile {profile.name}.")
+            st.success(f"Image description generated for profile {profile.name}.")
         else:
             st.write(f"Profile {profile.name} already has an image description.")
-        st.write(f"Generating scenario for profile {profile.name}")
-        generate_scenario(profile.id, usage['llm_model'])
-        st.write(f"Generated scenario for: {profile.name}")
-    # Generate a profile image for each profile
-    for profile in get_profiles():
-        st.write(f"Generating profile image for: {profile.name}")
-        generate_sample_profile_images(profile.id, usage['image_model'], num_images=1)
-        images = profile.get_images()
-        if images:
-            # Select first image seed as profile image_seed so we can generate scenario images
-            profile.image_seed = seed_from_image(images[0])
-            save_profile(profile)
-            st.success(f"Image generated for {profile.name}.")
-    # Generate images for each scenario
+        if not get_scenarios_for_profile(profile.id):
+            st.write(f"Generating scenario for profile {profile.name}")
+            generate_scenario(profile.id, usage['llm_model'])
+            st.success(f"Generated scenario for: {profile.name}")
+    # Generate scene descriptions for each scenario
     for scenario in get_scenarios():
         if not scenario.scene_descriptions:
             st.write(f"Generating scene descriptions for scenario {scenario.title}")
             generate_scene_descriptions(scenario.id, usage['llm_model'])
-            st.write(f"Generated scene descriptions for: {scenario.title}. Generating images.")
-            generate_scenario_images(scenario.id, usage['image_model'])
-            st.write(f"Generated scene images: {scenario.title}")
+            st.success(f"Generated scene descriptions for: {scenario.title}. Generating images.")
         else:
             st.write(f"Scenario {scenario.title} already has scene descriptions.")
+    # Generate a profile image for each profile
+    for profile in get_profiles():
+        if not profile.profile_image_path:
+            st.write(f"Generating profile image for: {profile.name}")
+            profile = generate_sample_profile_images(profile.id, usage['image_model'], num_images=1)
+            st.success(f"Profile image generated for: {profile.name}.")
+        images = profile.get_images()
+        if not profile.image_seed:
+            if images:
+                # Select first image seed as profile image_seed so we can generate scenario images
+                profile.image_seed = seed_from_image(images[0])
+                save_profile(profile)
+                st.success(f"Image seed generated for {profile.name}.")
+            else:
+                profile.image_seed = -1
+                save_profile(profile)
+                st.warning(f"No image seed generated for {profile.name}. Using -1 (random).")
+    # Generate scenario images for each scenario
+    for scenario in get_scenarios():
+        if not scenario.images:
+            st.write(f"Generating images for scenario {scenario.title}")
+            generate_scenario_images(scenario.id, usage['image_model'])
+            st.success(f"Images generated for: {scenario.title}.")
+        else:
+            st.write(f"Scenario {scenario.title} already has images.")

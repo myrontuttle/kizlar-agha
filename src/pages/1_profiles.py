@@ -48,8 +48,12 @@ for i, profile in enumerate(profiles):
     # Display each row
     row = st.columns([3, 2, 1])
     with row[0]:
-        st.json(vars(profile))
-        #st.markdown(details_str)
+        st.markdown(f"**{profile.name}**<br>"
+                    f"*Background:* {profile.background}<br>"
+                    f"*Personality:* {profile.personality}<br>"
+                    f"*Interests:* {profile.interests}<br>"
+                    f"*Physical Characteristics:* {profile.physical_characteristics}",
+                    unsafe_allow_html=True)
     with row[1]:
         if not getattr(profile, "profile_image_description", None):
             if st.button("Generate Profile Image Description", key=f"generate_profile_image_description_{i}", disabled=(status != "idle")):
@@ -64,13 +68,16 @@ for i, profile in enumerate(profiles):
                 for img in images:
                     if img:
                         img_seed = seed_from_image(img)
-                        st.image(img, caption=f"{img_seed}", width=120)
-                        with st.popover(f"View Full Image {img_seed}"):
-                            st.image(img, caption=f"{img_seed}")
-                        if st.button(f"Make Main Image {img_seed}", key=f"main_image_{i}_{img_seed}", disabled=(status != "idle")):
-                            threading.Thread(target=generate_main_profile_image, args=(profile.id, image_model, img_seed), daemon=True).start()
-                            st.info("Image generation started in the background. Refresh to see progress.")
-                            break  # Exit loop after setting main image
+                        try:
+                            st.image(img, caption=f"{img_seed}", width=120)
+                            with st.popover(f"View Full Image {img_seed}"):
+                                st.image(img, caption=f"{img_seed}")
+                            if st.button(f"Make Main Image {img_seed}", key=f"main_image_{i}_{img_seed}", disabled=(status != "idle")):
+                                threading.Thread(target=generate_main_profile_image, args=(profile.id, image_model, img_seed), daemon=True).start()
+                                st.info("Image generation started in the background. Refresh to see progress.")
+                                break  # Exit loop after setting main image
+                        except Exception as e:
+                            st.error(f"Error displaying image {img_seed}: {e}")
                 if st.button(f"Delete All Images {getattr(profile, 'name', i)}", key=f"delete_images_{i}"):
                     profile.delete_images()
                     save_profile(profile)
