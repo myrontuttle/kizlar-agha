@@ -1,6 +1,6 @@
 import streamlit as st
-from db import get_profiles, get_scenarios, get_scenarios_for_profile, init_db, get_model_usage, save_model_usage, save_profile
-from services import generate_profile, generate_profile_image_description, generate_sample_profile_images, generate_scenario, generate_scenario_images, generate_scene_descriptions, stop_models, set_status_to_idle
+from db import get_profiles, get_scenarios, get_scenarios_for_profile, init_db, get_model_usage, save_message, save_model_usage, save_profile, get_messages
+from services import generate_profile, generate_profile_image_description, generate_sample_profile_images, generate_scenario, generate_scenario_images, generate_scene_descriptions, stop_models, set_status_to_idle, voice_response
 from ml.llm import list_ollama_models
 from ml.swarm_ui import list_image_models, seed_from_image
 from models import ModelUsageSchema
@@ -32,6 +32,8 @@ with btn_col2:
         set_status_to_idle()
         st.success("Status set to idle.")
 st.markdown("---")
+
+# Generate a full set of profiles, scenarios, and images
 if st.button("Surprise Me"):
     if usage['llm_model'] == "":
         llm_models = list_ollama_models()
@@ -99,3 +101,11 @@ if st.button("Surprise Me"):
             st.success(f"Images generated for: {scenario.title}.")
         else:
             st.write(f"Scenario {scenario.title} already has images.")
+        # Voice messages if not already voiced
+        messages = get_messages(scenario.id)
+        for msg in messages:
+            if not msg.speech:
+                st.write(f"Voicing speech for message {msg.id} in scenario {scenario.title}")
+                voice_response(msg.content, profile.voice)
+                st.success(f"Speach generated for message {msg.id}.")
+st.markdown("---")

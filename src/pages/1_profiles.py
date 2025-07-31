@@ -1,5 +1,4 @@
 import streamlit as st
-import json
 import threading
 from db import init_db, get_profiles, get_profile, save_profile, delete_profile, get_model_usage
 from models import Profile, ProfileSchema, Scenario, ScenarioSchema
@@ -119,6 +118,7 @@ if selected == "New":
         profile_image_description="",
         profile_image_path="",
         chat_model="",
+        voice="",
     )
 else:
     profile_id = int(selected.split(":")[0])
@@ -182,6 +182,13 @@ with st.form("profile_form"):
     else:
         chat_model = profile_data.chat_model or ""
         st.info("Click 'Fetch Chat Models' to load available chat models.")
+    voices = ["tara", "zoe"]
+    voice = st.selectbox(
+        "Select Voice",
+        voices,
+        index=0,  # Default to the first voice
+        key="profile_voice_select"
+    )
 
     st.markdown("---")
     save = st.form_submit_button("Save")
@@ -197,5 +204,6 @@ with st.form("profile_form"):
         profile_data.profile_image_description = profile_image_description
         profile_data.profile_image_path = profile_image_path
         profile_data.chat_model = chat_model
+        profile_data.voice = voice
         saved = save_profile(profile_data)
         st.success(f"Profile saved (ID: {saved.id})")

@@ -1,8 +1,9 @@
 import json
 from models import Profile, Scenario, MessageSchema
-from db import get_model_usage, save_model_usage, get_profile, save_profile, get_scenario, save_scenario, get_messages, get_next_message_order, save_message
+from db import get_message, get_model_usage, save_model_usage, get_profile, save_profile, get_scenario, save_scenario, get_messages, get_next_message_order, save_message
 from ml.llm import InferenceLLMConfig, stop_ollama_container, extract_json_from_response, remove_thinking
 from ml.swarm_ui import image_from_prompt, stop_swarmui
+from ml.tts import get_tts_audio, remove_action_text
 from utils import settings, logger
 from tenacity import (
     retry,
@@ -97,7 +98,8 @@ def generate_profile(llm_model: str, special_requests: str):
             background=profile_data.get("background"),
             personality=profile_data.get("personality"),
             interests=profile_data.get("interests"),
-            physical_characteristics=profile_data.get("physical_characteristics")
+            physical_characteristics=profile_data.get("physical_characteristics"),
+            voice="tara"
         )
     )
     logger.info(f"Profile generated")
@@ -508,8 +510,10 @@ def respond_to_chat(llm_model, profile_id, scenario_id, scene_num, message):
                 {
                     "role": "system",
                     "content": f"You are {profile.name}, having a conversation with the user during a scene in a "
-                    "scenario. Gestures and other non-verbal actions are written between asterisks (for example, "
-                    "*waving* or *moving closer*). When referring to the user, use 'you' or 'your'. "
+                    "scenario. Write your gestures and other non-verbal actions between asterisks (e.g., "
+                    "*waving* or *moving closer*). Write your vocalizations between angled brackets(e.g., "
+                    "<laugh>, <chuckle>, <groan>, <sigh>). When describing your gestures and actions use 'I' and"
+                    " 'my'. When referring to the user, use 'you' or 'your'. "
                     "Be creative with words. Use onomatopoeia and describe sounds, smells, tastes, textures in "
                     "detail. Aim for 2-3 sentences per response on average. In sexual moments, be thorough and "
                     "expressive. Describe all sounds, feelings, touches, etc. that you experience. In "
@@ -548,3 +552,30 @@ def add_message(scenario_id, role, content):
         order=order
     )
     return save_message(msg)
+
+def voice_response(message_id, voice):
+    """Use TTS to voice a message"""
+    message = get_message(message_id)
+    if not message:
+        raise ValueError(f"Message with ID {message_id} not found.")
+    if not voice:
+        raise ValueError("Voice must be specified for TTS.")
+    usage = get_model_usage()
+    if usage.status != "idle":
+        logger.warning("Model usage is not idle, cannot generate voice response.")
+        return
+    usage.status = "Generating Voice Response"
+    save_model_usage(usage)
+    try:
+        # Strip out non-verbal actions written between asterisks
+        input = remove_action_text(message.content)
+        message.speech = get_tts_audio(input=input, voice=voice)
+        save_message(message)
+        usage.status = "idle"
+        save_model_usage(usage)
+        if not message.speech:
+            raise ValueError("Failed to generate voice response: No audio content returned")
+        logger.info(f"Voice response generated for message ID {message_id}")
+    except Exception as e:
+        logger.error(f"Error generating voice response for message ID {message_id}: {e}")
+    return message.speech

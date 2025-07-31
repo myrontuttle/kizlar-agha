@@ -12,8 +12,6 @@ from langfuse.decorators import observe
 from litellm import supports_response_schema, acompletion, completion, aembedding, embedding
 from pydantic import BaseModel, SecretStr, ConfigDict, model_validator
 from typing_extensions import Self
-
-
 from tenacity import (
     retry,
     stop_after_attempt,

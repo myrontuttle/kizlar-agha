@@ -8,7 +8,7 @@ import docker
 import re
 from utils import docker_client, logger, settings
 
-FILES_DIR = os.path.join(os.path.dirname(__file__), "/kizlar-agha/files")
+FILES_DIR = os.path.join(os.path.dirname(__file__), "/kizlar-agha/files/images")
 PROMPT = "A futuristic cityscape at sunset"
 
 def start_swarmui_session() -> Optional[str]:
@@ -345,6 +345,8 @@ def image_from_prompt(
             model,
             prompt,
         )
+    # Make sure the files directory exists
+    os.makedirs(FILES_DIR, exist_ok=True)
     for image_url in image_urls:
         image_files.append(download_image(image_url, FILES_DIR))
     return image_files

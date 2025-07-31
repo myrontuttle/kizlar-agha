@@ -4,6 +4,7 @@ from models import ModelUsage, ModelUsageSchema
 from services import stop_models, set_status_to_idle
 from ml.llm import list_ollama_models
 from ml.swarm_ui import list_image_models
+from utils import docker_client
 
 init_db()
 
@@ -12,7 +13,7 @@ st.title("Model Usage")
 # Load current usage from DB
 usage = get_model_usage()
 if usage is None:
-    usage = {"llm_model": "", "image_model": "", "status": "idle"}
+    usage = {"llm_model": "", "image_model": "", "tts_model": "", "status": "idle"}
 elif not isinstance(usage, dict):
     usage = usage.model_dump()
 
@@ -72,11 +73,34 @@ if image_models:
 else:
     st.info("Click 'Fetch Image Models' to load available image models.")
 
+# --- TTS model usage ---
+st.header("TTS Model")
+tts_models = ['orpheus', 'chatterbox', 'kokoro']
+tts_model = st.selectbox(
+    "Select TTS Model",
+    tts_models,
+    index=0,  # Default to the first model
+    key="tts_model_select"
+)
+if st.button("Update TTS Model"):
+    usage["tts_model"] = tts_model
+    save_model_usage(ModelUsageSchema(**usage))
+    st.success(f"TTS model updated to: {tts_model}")
+
 # --- Show current usage ---
 st.markdown("---")
 st.write("**Current usage:**")
 st.json({
     "llm_model": usage["llm_model"],
     "image_model": usage["image_model"],
+    "tts_model": usage["tts_model"],
     "status": usage["status"]
 })
+
+# --- Show containers ---
+st.markdown("---")
+containers = docker_client.containers.list(all=True)
+
+# Display each container's name and status
+for container in containers:
+    st.write(f"**{container.name}** — Status: `{container.status}`")

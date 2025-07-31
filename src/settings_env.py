@@ -50,6 +50,20 @@ class SwarmUIEnvironmentVariables(BaseEnvironmentVariables):
             "SWARMUI_WS_URL": self.SWARMUI_WS_URL,
         }
 
+
+class TTSEnvironmentVariables(BaseEnvironmentVariables):
+    TTS_CONTAINER: Optional[str] = "orpheus-fastapi"
+    TTS_BASE_URL: Optional[str] = "http://host.docker.internal:5005"
+    TTS_API_URL: Optional[str] = "http://host.docker.internal:5005/v1/audio/speech"
+
+    def get_tts_env_vars(self):
+        return {
+            "TTS_CONTAINER": self.TTS_CONTAINER,
+            "TTS_BASE_URL": self.TTS_BASE_URL,
+            "TTS_API_URL": self.TTS_API_URL,
+        }
+
+
 class EvaluatorEnvironmentVariables(BaseEnvironmentVariables):
     EVALUATOR_BASE_URL: Optional[str] = "http://localhost:11434"
     EVALUATOR_API_KEY: Optional[SecretStr] = "tt"
@@ -88,6 +102,7 @@ class Settings(
     EmbeddingsEnvironmentVariables,
     EvaluatorEnvironmentVariables,
     SwarmUIEnvironmentVariables,
+    TTSEnvironmentVariables,
 ):
     """Settings class for the application.
 
@@ -110,6 +125,7 @@ class Settings(
         env_vars.update(self.get_inference_env_vars())
         env_vars.update(self.get_embeddings_env_vars())
         env_vars.update(self.get_swarmui_env_vars())
+        env_vars.update(self.get_tts_env_vars())
 
         if self.ENABLE_EVALUATION:
             env_vars.update(self.get_evaluator_env_vars())

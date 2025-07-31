@@ -112,7 +112,7 @@ bin/act
 *Zone.Identifier
 
 # Project specific files
-files/
+files/*
 
 .cache*
 

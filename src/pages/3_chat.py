@@ -1,10 +1,12 @@
+import threading
 import streamlit as st
 import json
 from db import (
     delete_message, get_messages, get_scenarios_for_profile, get_scenario,
     get_profiles, get_profile, get_model_usage, save_message
 )
-from services import respond_to_chat, stop_models, set_status_to_idle, add_message
+from services import respond_to_chat, stop_models, set_status_to_idle, add_message, voice_response
+from models import MessageSchema
 
 st.write("# Chat")
 
@@ -89,7 +91,7 @@ with st.container(height=400):
     if "messages" not in st.session_state or st.session_state.get("scenario_id") != scenario_id:
         previous_messages = get_messages(scenario_id)
         st.session_state.messages = [
-            {"role": msg.role, "content": msg.content, "index": i}
+            {"role": msg.role, "content": msg.content, "order": msg.order, "speech": msg.speech, "id": msg.id}
             for i, msg in enumerate(previous_messages)
         ]
         st.session_state.scenario_id = scenario_id
@@ -100,10 +102,20 @@ with st.container(height=400):
     for idx, msg in enumerate(st.session_state.messages):
         col_msg, col_edit_delete = st.columns([9, 1])
         with col_msg:
-            st.markdown(
-                f"**{'You' if msg['role']=='user' else character_profile.name}:**<br>{msg['content']}",
-                unsafe_allow_html=True,
-            )
+            if msg['role'] == 'character':
+                if 'speech' in msg and msg['speech']:
+                    # If the message has speech, play it
+                    st.audio(msg['speech'], format="audio/wav")
+                else:
+                    if st.button("Speak", disabled=(status != "idle"), key=f"voice_{msg['id']}"):
+                        threading.Thread(target=voice_response, args=(msg['id'], character_profile.voice), daemon=True).start()
+                        st.info("Speech generation started in the background")
+                st.markdown(f"**{character_profile.name}:**<br>{msg['content']}", unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    f"<div  style='text-align: right;'><strong>You:</strong><br>{msg['content']}</div>",
+                    unsafe_allow_html=True,
+                )
         with col_edit_delete:
             if st.button("✏️", key=f"edit_{idx}"):
                 st.session_state["edit_index"] = idx
@@ -125,9 +137,15 @@ with st.container(height=400):
             if st.button("Save", key=f"save_{idx}"):
                 st.session_state.messages[idx]["content"] = new_content
                 # Update in DB as well
-                msg['content'] = new_content
-                msg['id'] = st.session_state.messages[idx].get('id', None)
-                save_message(msg)
+                message_data = MessageSchema(
+                    id=msg['id'],
+                    scenario_id=scenario_id,
+                    role=msg['role'],
+                    content=new_content,
+                    order=msg['order'],
+                    speech=msg['speech']
+                )
+                save_message(message_data)
                 st.session_state["edit_index"] = None
                 st.session_state["edit_content"] = ""
                 rerun_needed = True
@@ -158,8 +176,16 @@ if st.button("Send", key="send_message", disabled=not ready_to_send):
             scene_num=scene_num,
             message=user_message
         )
-        add_message(scenario_id, "character", character_response)
-        st.session_state.messages.append({"role": "character", "content": character_response})
+        char_msg = add_message(scenario_id, "character", character_response)
+        st.session_state.messages.append(
+            {
+                "role": "character",
+                "content": character_response,
+                "order": char_msg.order,
+                "speech": char_msg.speech,
+                "id": char_msg.id
+            }
+        )
         st.session_state["clear_input"] = True
         st.rerun()
     except Exception as e:

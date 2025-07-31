@@ -52,6 +52,7 @@ def save_profile(data):
                 profile.profile_image_description = data.profile_image_description
                 profile.profile_image_path = data.profile_image_path
                 profile.chat_model = data.chat_model
+                profile.voice = data.voice
         else:
             profile = Profile(
                 name=data.name,
@@ -63,7 +64,8 @@ def save_profile(data):
                 image_seed=data.image_seed,
                 profile_image_description=data.profile_image_description,
                 profile_image_path=data.profile_image_path,
-                chat_model=data.chat_model
+                chat_model=data.chat_model,
+                voice=data.voice
             )
             session.add(profile)
         session.commit()
@@ -92,11 +94,13 @@ def save_model_usage(data):
         if usage:
             usage.llm_model = data.llm_model
             usage.image_model = data.image_model
+            usage.tts_model = data.tts_model
             usage.status = data.status
         else:
             usage = ModelUsage(
                 llm_model=data.llm_model,
                 image_model=data.image_model,
+                tts_model=data.tts_model,
                 status=data.status
             )
             session.add(usage)
@@ -159,6 +163,14 @@ def get_messages(scenario_id):
         messages = session.query(Message).filter_by(scenario_id=scenario_id).order_by(Message.order).all()
         return [MessageSchema.model_validate(m) for m in messages]
 
+def get_message(message_id):
+    """Get message based on its id."""
+    with SessionLocal() as session:
+        message = session.query(Message).filter_by(id=message_id).first()
+        if message:
+            return MessageSchema.model_validate(message)
+        return None
+
 def save_message(data):
     """Save a message for a scenario."""
     with SessionLocal() as session:
@@ -169,12 +181,14 @@ def save_message(data):
                 message.role = data.role
                 message.content = data.content
                 message.order = data.order
+                message.speech = data.speech
         else:
             message = Message(
                 scenario_id=data.scenario_id,
                 role=data.role,
                 content=data.content,
-                order=data.order
+                order=data.order,
+                speech=data.speech
             )
             session.add(message)
         session.commit()

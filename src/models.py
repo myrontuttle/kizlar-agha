@@ -13,8 +13,9 @@ Base = declarative_base()
 class ModelUsage(Base):
     __tablename__ = "model_usage"
     id = Column(Integer, primary_key=True)
-    llm_model = Column(String, nullable=False)
+    llm_model = Column(String, nullable=True)
     image_model = Column(String, nullable=True)
+    tts_model = Column(String, nullable=True)
     status = Column(String, nullable=False, default="idle")
 
     def model_dump(self):
@@ -22,13 +23,15 @@ class ModelUsage(Base):
             "id": self.id,
             "llm_model": self.llm_model,
             "image_model": self.image_model,
+            "tts_model" : self.tts_model,
             "status": self.status
         }
 
 class ModelUsageSchema(BaseModel):
     id: int | None = None
-    llm_model: str
+    llm_model: str | None = None
     image_model: str | None = None
+    tts_model: str | None = None
     status: str
 
     class Config:
@@ -47,7 +50,8 @@ class Profile(Base):
     profile_image_description = Column(String)
     profile_image_path = Column(String)
     chat_model = Column(String)
-    scenarios = relationship("Scenario", back_populates="profile")
+    voice = Column(String)
+    scenarios = relationship("Scenario", back_populates="profile", cascade="all, delete-orphan")
 
     def model_dump(self, *args, **kwargs):
         """Override to return a dictionary representation of the profile."""
@@ -62,7 +66,8 @@ class Profile(Base):
             "image_seed": self.image_seed,
             "profile_image_description": self.profile_image_description,
             "profile_image_path": self.profile_image_path,
-            "chat_model": self.chat_model
+            "chat_model": self.chat_model,
+            "voice": self.voice
         }
 
     def get_images(self):
@@ -90,6 +95,13 @@ class Profile(Base):
         self.profile_image_path = None
         logger.info("All profile images deleted and profile_image_path cleared.")
 
+    def delete_all(self):
+        """Delete the whole profile."""
+        self.delete_images()
+        for scenario in self.scenarios:
+            scenario.delete_all()
+        logger.info(f"Profile {self.name} deleted successfully.")
+
 
 class ProfileSchema(BaseModel):
     id: int | None = None
@@ -103,6 +115,7 @@ class ProfileSchema(BaseModel):
     profile_image_description: str | None = None
     profile_image_path: str | None = None
     chat_model: str | None = None
+    voice: str | None = None
 
     class Config:
         from_attributes = True
@@ -180,6 +193,13 @@ class Scenario(Base):
         self.images = None
         logger.info("All scenario images deleted and images field cleared.")
 
+    def delete_all(self):
+        """Delete the entire scenario."""
+        self.delete_images()
+        for message in self.messages:
+            message.delete_speech()
+        logger.info(f"Scenario {self.title} deleted successfully.")
+
 
 class ScenarioSchema(BaseModel):
     id: int | None = None
@@ -202,6 +222,7 @@ class Message(Base):
     role = Column(String, nullable=False)
     content = Column(String, nullable=False)
     order = Column(Integer, nullable=False)
+    speech = Column(String, nullable=True)
     scenario = relationship("Scenario", back_populates="messages")
 
     def model_dump(self, *args, **kwargs):
@@ -211,8 +232,20 @@ class Message(Base):
             "scenario_id": self.scenario_id,
             "order": self.order,
             "role": self.role,
-            "content": self.content
+            "content": self.content,
+            "speech": self.speech
         }
+
+    def delete_speech(self):
+        """Delete associated speech"""
+        if self.speech:
+            try:
+                os.remove(self.speech)
+                logger.info(f"Deleted speech file: {self.speech}")
+            except OSError as e:
+                logger.error(f"Error deleting speech file {self.speech}: {e}")
+        self.speech = None
+        logger.info(f"Message {self.id} deleted successfully.")
 
 
 class MessageSchema(BaseModel):
@@ -221,6 +254,7 @@ class MessageSchema(BaseModel):
     order: int
     role: str
     content: str
+    speech: str | None = None
 
     class Config:
         from_attributes = True
