@@ -10,7 +10,7 @@ services:
     volumes:
       # This allows access to the host's docker, e.g. for builds:
       - /var/run/docker.sock:/var/run/docker.sock
-      - files:/app/files
+      - files:/kizlar-agha/files
     command: make run-frontend
     env_file: ".env"
     environment:

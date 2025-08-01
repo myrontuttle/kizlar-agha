@@ -55,6 +55,13 @@ def stop_tts_container():
             logger.info(f"{TTS_CONTAINER} container stopped successfully.")
         else:
             logger.info(f"{TTS_CONTAINER} container is not running.")
+        if TTS_CONTAINER == "orpheus-fastapi":
+            additional_container = docker_client.containers.get(ADDITIONAL_TTS_CONTAINER)
+            if additional_container.status == "running":
+                additional_container.stop()
+                logger.info(f"{ADDITIONAL_TTS_CONTAINER} container stopped successfully.")
+            else:
+                logger.info(f"{ADDITIONAL_TTS_CONTAINER} container is not running.")
     except docker.errors.NotFound:
         logger.error(f"{TTS_CONTAINER} container not found.")
     except docker.errors.APIError as e:

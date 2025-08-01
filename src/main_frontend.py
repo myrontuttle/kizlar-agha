@@ -47,7 +47,7 @@ if st.button("Surprise Me"):
         save_model_usage(ModelUsageSchema(**usage))
     # Generate up to 5 random profiles if there are not already 5 profiles
     profiles = get_profiles()
-    requests = ["Latina", "East Asian", "Northern European Blonde", "Redhead", "Eastern European Brunette"]
+    requests = ["Latina", "East Asian", "Northern European Blonde", "American Redhead", "Eastern European Brunette"]
     if len(profiles) < len(requests):
         # Use only the last requests needed to get to 5 total profiles
         requests = requests[len(profiles):]
@@ -73,7 +73,7 @@ if st.button("Surprise Me"):
         if not scenario.scene_descriptions:
             st.write(f"Generating scene descriptions for scenario {scenario.title}")
             generate_scene_descriptions(scenario.id, usage['llm_model'])
-            st.success(f"Generated scene descriptions for: {scenario.title}. Generating images.")
+            st.success(f"Generated scene descriptions for: {scenario.title}.")
         else:
             st.write(f"Scenario {scenario.title} already has scene descriptions.")
     # Generate a profile image for each profile
@@ -106,6 +106,6 @@ if st.button("Surprise Me"):
         for msg in messages:
             if not msg.speech:
                 st.write(f"Voicing speech for message {msg.id} in scenario {scenario.title}")
-                voice_response(msg.content, profile.voice)
+                voice_response(msg.id, profile.voice)
                 st.success(f"Speach generated for message {msg.id}.")
 st.markdown("---")

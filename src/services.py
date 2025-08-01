@@ -3,7 +3,7 @@ from models import Profile, Scenario, MessageSchema
 from db import get_message, get_model_usage, save_model_usage, get_profile, save_profile, get_scenario, save_scenario, get_messages, get_next_message_order, save_message
 from ml.llm import InferenceLLMConfig, stop_ollama_container, extract_json_from_response, remove_thinking
 from ml.swarm_ui import image_from_prompt, stop_swarmui
-from ml.tts import get_tts_audio, remove_action_text
+from ml.tts import get_tts_audio, remove_action_text, stop_tts_container
 from utils import settings, logger
 from tenacity import (
     retry,
@@ -15,6 +15,7 @@ def stop_models():
     """Stops models"""
     stop_ollama_container()
     stop_swarmui()
+    stop_tts_container()
 
 def set_status_to_idle():
     """Return status to idle"""
@@ -257,7 +258,7 @@ def generate_main_profile_image(profile_id, image_model: str, image_seed: str):
 
 @retry(
     wait=wait_fixed(15),
-    stop=stop_after_attempt(2),
+    stop=stop_after_attempt(3),
     after=lambda retry_state: logger.warning(
         f"Retrying scenario generation due to error: {retry_state.outcome.exception()}"
     ),
@@ -359,7 +360,7 @@ def generate_scene_description(scenario, llm_model: str, scene_id: int, previous
             base_url=settings.INFERENCE_BASE_URL,
             api_key=settings.INFERENCE_API_KEY,
         )
-        logger.info(f"Generating scene description for scene_id: {scene_id} using Ollama LLM: {llm.model_name}")
+        logger.info(f"Generating scene description for scene_id: {scene_id} using: {llm.model_name}")
         response = llm.generate_from_messages(
             messages=[
                 {
@@ -490,6 +491,7 @@ def respond_to_chat(llm_model, profile_id, scenario_id, scene_num, message):
         raise ValueError(f"Cannot respond to chat: scene_num {scene_num} is out of bounds for scenario with {len(scenes)} scenes.")
     scene = scenes[scene_num]
     previous_messages = get_messages(scenario_id)
+    previous_messages = previous_messages[-10:]  # Limit to last 10 messages
     previous_contents = [msg.content for msg in previous_messages]
     previous_messages_str = json.dumps(previous_contents)
     usage = get_model_usage()
@@ -513,7 +515,7 @@ def respond_to_chat(llm_model, profile_id, scenario_id, scene_num, message):
                     "scenario. Write your gestures and other non-verbal actions between asterisks (e.g., "
                     "*waving* or *moving closer*). Write your vocalizations between angled brackets(e.g., "
                     "<laugh>, <chuckle>, <groan>, <sigh>). When describing your gestures and actions use 'I' and"
-                    " 'my'. When referring to the user, use 'you' or 'your'. "
+                    " 'my' not your name. When referring to the user, use 'you' or 'your'. "
                     "Be creative with words. Use onomatopoeia and describe sounds, smells, tastes, textures in "
                     "detail. Aim for 2-3 sentences per response on average. In sexual moments, be thorough and "
                     "expressive. Describe all sounds, feelings, touches, etc. that you experience. In "
