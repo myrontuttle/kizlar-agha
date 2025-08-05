@@ -128,6 +128,37 @@ with st.container(height=400):
                 delete_message(msg['id'])
                 rerun_needed = True
                 break  # Prevent index errors after deletion
+            if st.button("↺", key=f"regenerate_{idx}", disabled=(status != "idle")):
+                # Regenerate the character's response
+                if msg['role'] == 'character':
+                    send_msg = st.session_state.messages[idx - 1] if idx > 0 else None
+                    # Remove the current message from the list to avoid duplication
+                    st.session_state.messages.pop(idx)
+                    delete_message(msg['id'])
+                else:
+                    send_msg = msg  # Use the current message if it's from the user
+                try:
+                    character_response = respond_to_chat(
+                        llm_model=llm_model,
+                        profile_id=profile_id,
+                        scenario_id=scenario_id,
+                        scene_num=scene_num,
+                        message=send_msg['content']
+                    )
+                    char_msg = add_message(scenario_id, "character", character_response)
+                    st.session_state.messages.append(
+                        {
+                            "role": "character",
+                            "content": character_response,
+                            "order": char_msg.order,
+                            "speech": char_msg.speech,
+                            "id": char_msg.id
+                        }
+                    )
+                    rerun_needed = True
+                    break  # Prevent index errors after deletion
+                except Exception as e:
+                    st.error(f"Error regenerating message: {e}")
 
         # Show edit box if this message is being edited
         if st.session_state.get("edit_index") == idx:
@@ -164,8 +195,7 @@ if st.session_state.get("clear_input", False):
 
 # --- Chat input at the bottom (outside scrollable area) ---
 user_message = st.text_area("You:", key="chat_input", placeholder="Type your message here...")
-ready_to_send = user_message and status == "idle"
-if st.button("Send", key="send_message", disabled=not ready_to_send):
+if st.button("Send", key="send_message", disabled=(status != "idle")):
     try:
         add_message(scenario_id, "user", user_message)
         st.session_state.messages.append({"role": "user", "content": user_message})
