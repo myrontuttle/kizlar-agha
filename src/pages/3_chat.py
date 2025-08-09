@@ -1,6 +1,7 @@
 import threading
 import streamlit as st
 import json
+import re
 from db import (
     delete_message, get_messages, get_scenarios_for_profile, get_scenario,
     get_profiles, get_profile, get_model_usage, save_message
@@ -112,6 +113,9 @@ with st.container(height=400):
                         st.info("Speech generation started in the background")
                 st.markdown(f"**{character_profile.name}:**<br>{msg['content']}", unsafe_allow_html=True)
             else:
+                # Wrap text between asterisks in <em> and </em> tags
+                msg['content'] = re.sub(r'\*(.*?)\*', r'<em>\1</em>', msg['content'])
+                # Display user messages with right alignment
                 st.markdown(
                     f"<div  style='text-align: right;'><strong>You:</strong><br>{msg['content']}</div>",
                     unsafe_allow_html=True,

@@ -105,5 +105,8 @@ def remove_action_text(content):
     """Remove anything between asterisks from the content."""
     if not content:
         return ""
-    # Remove text between asterisks (e.g., *action text*)
-    return re.sub(r"\*.*?\*", "", content, flags=re.DOTALL).strip()
+    # Remove text between asterisks (e.g., *action text*) and any line breaks
+    content = re.sub(r"\*.*?\*", "", content, flags=re.DOTALL)
+    content = re.sub(r"\n+", " ", content)  # Replace multiple newlines with a single space
+    content = content.strip()  # Remove leading and trailing whitespace
+    return content

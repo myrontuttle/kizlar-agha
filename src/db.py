@@ -35,7 +35,9 @@ def get_profiles():
 
 def get_profile(profile_id: int):
     with SessionLocal() as session:
-        return session.query(Profile).filter_by(id=profile_id).first()
+        return session.query(Profile)\
+            .options(joinedload(Profile.scenarios))\
+            .filter_by(id=profile_id).first()
 
 def save_profile(data):
     with SessionLocal() as session:
@@ -74,8 +76,10 @@ def save_profile(data):
 
 def delete_profile(profile_id: int):
     with SessionLocal() as session:
-        profile = session.query(Profile).filter_by(id=profile_id).first()
+        profile = session.query(Profile).options(joinedload(Profile.scenarios)).filter_by(id=profile_id).first()
         if profile:
+            # Call delete_all() while still in session
+            profile.delete_all()
             session.delete(profile)
             session.commit()
             return True

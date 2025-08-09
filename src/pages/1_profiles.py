@@ -87,7 +87,6 @@ for i, profile in enumerate(profiles):
                 st.info("Image generation started in the background. Refresh to see progress.")
     with row[2]:
         if st.button("Remove", key=f"remove_{i}"):
-            profile.delete_all()  # Delete files associated with the profile
             delete_profile(profile.id)
             st.warning(f"Removed profile {getattr(profile, 'name', i)}. Refresh to see changes.")
 
