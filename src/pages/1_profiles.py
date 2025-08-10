@@ -61,6 +61,7 @@ for i, profile in enumerate(profiles):
                     st.success("Profile Image Description started in background. Refresh to see progress.")
                 except Exception as e:
                     st.error(f"Error generating image description: {e}")
+            break # Don't show anything more until the profile has an image description
         if getattr(profile, "profile_image_path", None):
             images = profile.get_images()
             if images:
@@ -81,10 +82,15 @@ for i, profile in enumerate(profiles):
                     profile.delete_images()
                     save_profile(profile)
                     st.success(f"All images deleted for profile {getattr(profile, 'name', i)}")
-        else:
-            if st.button("Generate Profile Images", key=f"generate_profile_images_{i}", disabled=(status != "idle")):
-                threading.Thread(target=generate_sample_profile_images, args=(profile.id, image_model), daemon=True).start()
-                st.info("Image generation started in the background. Refresh to see progress.")
+        # Select number of sample images to generate
+        num_images = st.number_input(
+            f"Number of images to generate for {getattr(profile, 'name', i)}",
+            min_value=1, max_value=5, value=1, step=1,
+            key=f"num_images_{i}"
+        )
+        if st.button("Generate Profile Images", key=f"generate_profile_images_{i}", disabled=(status != "idle")):
+            threading.Thread(target=generate_sample_profile_images, args=(profile.id, image_model, num_images), daemon=True).start()
+            st.info("Image generation started in the background. Refresh to see progress.")
     with row[2]:
         if st.button("Remove", key=f"remove_{i}"):
             delete_profile(profile.id)
@@ -94,13 +100,19 @@ for i, profile in enumerate(profiles):
 st.markdown("---")
 st.header("Create New Profile")
 
-# Add a text input for region_request above the button
-special_requests = st.text_input("Any special requests for this profile (e.g., region, hair color)?", value="")
-
-# Generate a new profile
-if st.button("Generate New Profile", disabled=(status != "idle")):
-    threading.Thread(target=generate_profile, args=(llm_model, special_requests), daemon=True).start()
-    st.info("Profile generation started in the background. Refresh to see progress.")
+# Three columns for text input, checkbox to includ image, and button
+pro_col1, pro_col2, pro_col3 = st.columns([3, 1, 1])
+with pro_col1:
+    # text input for region_request above the button
+    special_requests = st.text_input("Any special requests for this profile (e.g., region, hair color)?", value="")
+with pro_col2:
+    # checkbox to generate images
+    gen_images = st.checkbox("Generate Images", value=True)
+with pro_col3:
+    # Generate a new profile
+    if st.button("Generate New Profile", disabled=(status != "idle")):
+        threading.Thread(target=generate_profile, args=(llm_model, special_requests, gen_images), daemon=True).start()
+        st.info("Profile generation started in the background. Refresh to see progress.")
 
 profile_names = [f"{p.id}: {p.name}" for p in profiles]
 selected = st.selectbox("Select a profile", ["New"] + profile_names)

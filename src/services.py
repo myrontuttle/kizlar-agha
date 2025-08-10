@@ -2,7 +2,7 @@ import json
 from models import Profile, Scenario, MessageSchema
 from db import get_message, get_model_usage, save_model_usage, get_profile, save_profile, get_scenario, save_scenario, get_messages, get_next_message_order, save_message
 from ml.llm import InferenceLLMConfig, stop_ollama_container, extract_json_from_response, remove_thinking
-from ml.swarm_ui import image_from_prompt, stop_swarmui
+from ml.swarm_ui import image_from_prompt, seed_from_image, stop_swarmui
 from ml.tts import get_tts_audio, remove_action_text, stop_tts_container
 from utils import settings, logger
 from tenacity import (
@@ -32,10 +32,10 @@ def set_status_to_idle():
     wait=wait_fixed(15),
     stop=stop_after_attempt(2),
     after=lambda retry_state: logger.warning(
-        f"Retrying scenario generation due to error: {retry_state.outcome.exception()}"
+        f"Retrying profile generation due to error: {retry_state.outcome.exception()}"
     ),
 )
-def generate_profile(llm_model: str, special_requests: str):
+def generate_profile(llm_model: str, special_requests: str, gen_images: bool = True) -> Profile:
     """Generate a profile based on the following prompts."""
     usage = get_model_usage()
     if usage.status != "idle":
@@ -93,7 +93,7 @@ def generate_profile(llm_model: str, special_requests: str):
     if not profile_data:
         raise ValueError(f"Failed to extract profile data from response: {response}")
     logger.info(f"Profile data generated: {profile_data}")
-    save_profile(
+    profile = save_profile(
         Profile(
             name=profile_data.get("name", "Default Name"),
             background=profile_data.get("background"),
@@ -103,6 +103,23 @@ def generate_profile(llm_model: str, special_requests: str):
             voice="tara"
         )
     )
+    # Generate profile image description and single profile images if requested
+    if gen_images:
+        logger.info("Generating profile image description and main profile image.")
+        try:
+            generate_profile_image_description(profile.id, llm_model=llm_model)
+            generate_sample_profile_images(
+                profile_id=profile.id,
+                image_model=usage.image_model,
+                num_images=1
+            )
+            # Save the first image seed to the profile
+            profile = get_profile(profile.id)  # Refresh profile to get updated image path
+            profile.image_seed = seed_from_image(profile.profile_image_path)
+            save_profile(profile)
+            logger.info(f"Profile image description and images generated for profile ID {profile.id}")
+        except Exception as e:
+            logger.error(f"Error generating profile image: {e}")
     logger.info(f"Profile generated")
 
 def generate_profile_image_description(profile_id, llm_model: str) -> str:
@@ -153,7 +170,7 @@ def generate_profile_image_description(profile_id, llm_model: str) -> str:
         save_model_usage(usage)
         if not response:
             raise ValueError("Failed to generate profile image description: No content in response")
-        profile.profile_image_description = response
+        profile.profile_image_description = response + ". solo, 1girl."
         save_profile(profile)
     except Exception as e:
         logger.error(f"Error generating profile image description: {e}")
@@ -263,7 +280,7 @@ def generate_main_profile_image(profile_id, image_model: str, image_seed: str):
         f"Retrying scenario generation due to error: {retry_state.outcome.exception()}"
     ),
 )
-def generate_scenario(profile_id, llm_model: str, special_requests="") -> "Scenario":
+def generate_scenario(profile_id, llm_model: str, special_requests="", gen_images: bool = True) -> "Scenario":
     """Generate a scenario based on the following prompts."""
     profile = get_profile(profile_id)
     if not profile:
@@ -340,6 +357,13 @@ def generate_scenario(profile_id, llm_model: str, special_requests="") -> "Scena
         order=get_next_message_order(scenario_id=saved_senario.id)
     )
     save_message(first_message)
+    if gen_images:
+        try:
+            generate_scene_descriptions(saved_senario.id, llm_model)
+            generate_scenario_images(saved_senario.id, usage.image_model)
+            logger.info(f"Scenario images generated for scenario ID {saved_senario.id}")
+        except Exception as e:
+            logger.error(f"Error generating scenario images: {e}")
     logger.info(f"Scenario data generated: {scenario_data}.")
 
 def generate_scene_description(scenario, llm_model: str, scene_id: int, previous_scene_description: str = ""):

@@ -356,12 +356,11 @@ def seed_from_image(image_path: str) -> Optional[int]:
     if not image_path:
         logger.error("Image path is empty. Cannot extract seed.")
         return None
-    filename = os.path.basename(image_path)
-    # Take the first digit sequence in the filename as the seed
-    match = re.search(r'\d+', filename)
+    # Take the first digit sequence in the image_path as the seed
+    match = re.search(r'\d+', image_path)
     if match:
         return int(match.group(0))
-    logger.warning(f"No seed found in image filename: {filename}")
+    logger.warning(f"No seed found in image path: {image_path}")
     return None
 
 if __name__ == "__main__":

@@ -63,10 +63,16 @@ else:
 
 # --- Generate new scenario ---
 st.markdown("### Generate New Scenario")
-special_requests = st.text_input("Special requests", value="")
-if st.button("Generate New Scenario", disabled=(status != "idle")):
-    threading.Thread(target=generate_scenario, args=(profile_id, llm_model, special_requests), daemon=True).start()
-    st.info("Scenario generation started in the background. Refresh to see progress.")
+ns_col1, ns_col2, ns_col3 = st.columns([3, 1, 1])
+with ns_col1:
+    special_requests = st.text_input("Special requests", value="")
+with ns_col2:
+    # checkbox to generate images
+    gen_images = st.checkbox("Generate Images", value=True)
+with ns_col3:
+    if st.button("Generate New Scenario", disabled=(status != "idle")):
+        threading.Thread(target=generate_scenario, args=(profile_id, llm_model, special_requests, gen_images), daemon=True).start()
+        st.info("Scenario generation started in the background. Refresh to see progress.")
 
 # --- Scenario edit form ---
 with st.form("scenario_form"):
